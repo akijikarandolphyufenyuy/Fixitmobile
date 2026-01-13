@@ -21,6 +21,7 @@ import 'features/dashboard/my_cv_page.dart';
 import 'features/dashboard/fixit_assistance_page.dart';
 import 'features/dashboard/settings_page.dart';
 import 'features/dashboard/notification_page.dart';
+import 'features/dashboard/subsciption_page.dart' hide SubscriptionPage;
 
 // REPOSITORIES
 import 'data/repositories/auth_repository.dart';

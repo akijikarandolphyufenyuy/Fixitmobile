@@ -1,12 +1,13 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart'; // Needed for kDebugMode (though not used now)
+import 'package:flutter/foundation.dart';
 
 import 'theme_provider.dart';
 import 'firebase_options.dart';
 import 'app_router.dart';
 import 'data/repositories/auth_repository.dart';
+// import 'data/repositories/auth_repository.dart'; // (for emulator setup)
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

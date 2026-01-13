@@ -8,35 +8,39 @@ class SubscriptionPage extends StatefulWidget {
 }
 
 class _SubscriptionPageState extends State<SubscriptionPage> {
-  String _selectedPlan = 'Free';
-  String _selectedPaymentMethod = 'MTN';
+  // State variables to track selections
+  String _selectedPlan = 'Free'; // Default selection
+  String _selectedPaymentMethod = 'MTN'; // Default selection
   final TextEditingController _phoneNumberController = TextEditingController();
 
   // Plan data
   final List<Map<String, dynamic>> _plans = [
-    {'name': 'Free', 'description': 'Basic features', 'price': '500frs'},
+    {'name': 'Free', 'description': 'Basic features 500frs', 'price': 0},
     {
       'name': 'Pro',
-      'description': 'High and fast notifications',
-      'price': '1000frs',
+      'description': 'High and fast notifications 1000frs',
+      'price': 1000,
     },
   ];
 
   // Payment method data
   final List<String> _paymentMethods = ['MTN', 'Orange'];
 
+  // Function to handle plan selection
   void _selectPlan(String planName) {
     setState(() {
       _selectedPlan = planName;
     });
   }
 
+  // Function to handle payment method selection
   void _selectPaymentMethod(String methodName) {
     setState(() {
       _selectedPaymentMethod = methodName;
     });
   }
 
+  // Function to handle subscription action
   void _onSubscribe() {
     if (!_isValidCameroonPhoneNumber(_phoneNumberController.text)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -50,23 +54,28 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       return;
     }
 
+    final selectedPlanData = _plans.firstWhere(
+      (plan) => plan['name'] == _selectedPlan,
+    );
+    final String methodName = _selectedPaymentMethod;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          'Subscribing to $_selectedPlan via $_selectedPaymentMethod...',
-        ),
+        content: Text('Subscribing to $_selectedPlan via $methodName...'),
         backgroundColor: const Color(0xFFED7C26),
       ),
     );
   }
 
+  // Function to validate Cameroon phone number (9 digits)
   bool _isValidCameroonPhoneNumber(String phoneNumber) {
     final digitsOnly = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
     return digitsOnly.length == 9;
   }
 
+  // Function to handle back navigation
   void _onBackPressed() {
-    context.go('/dashboard/settings');
+    context.go('/dashboard/settings'); // ✅ Fixed: was '/settings' — now correct
   }
 
   @override
@@ -78,36 +87,10 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Ensure the Scaffold background is white, which is crucial for text visibility
-      backgroundColor: Colors.white,
-      // FIX 1: Use a proper AppBar instead of a custom Container.
-      // This is more robust and handles theming correctly.
-      appBar: AppBar(
-        // Set the AppBar background to white and remove the shadow
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        // FIX 2: Use the 'leading' property for the back button.
-        // This ensures it is placed correctly and is visible.
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFED7C26)),
-          onPressed: _onBackPressed,
-        ),
-        // By default, a leading widget is implied. We disable it because we provide our own.
-        automaticallyImplyLeading: false,
-        title: const Text(
-          'Subscription',
-          style: TextStyle(
-            color: Color(0xFF1C110C), // Dark text color for the title
-            fontSize: 18,
-            fontFamily: 'Lexend',
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+      backgroundColor: const Color(
+        0xFFFFFFFF,
+      ), // Pure white background — ✅ fixes black screen
       body: SafeArea(
-        top: true,
-        bottom: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
             double horizontalPadding = constraints.maxWidth * 0.05;
@@ -117,13 +100,15 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // App Bar Section with Back Button
+                _buildAppBar(horizontalPadding),
+
                 Expanded(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                       horizontal: horizontalPadding,
                     ),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 20),
@@ -132,23 +117,21 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                         ..._plans
                             .map((plan) => _buildPlanOption(plan))
                             .toList(),
-                        const SizedBox(height: 24),
-                        const Divider(height: 1, color: Color(0xFFE0E0E0)),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                         _buildSectionTitle('Payment Method'),
                         const SizedBox(height: 16),
                         ..._paymentMethods
                             .map((method) => _buildPaymentOption(method))
                             .toList(),
                         const SizedBox(height: 16),
-                        // FIX 3: This was already correct, but it was invisible due
-                        // to the background color issue. It now works as intended.
                         _buildPhoneNumberInput(),
                         const SizedBox(height: 32),
                       ],
                     ),
                   ),
                 ),
+
+                // Subscribe Button
                 _buildSubscribeButton(horizontalPadding),
                 const SizedBox(height: 20),
               ],
@@ -159,7 +142,41 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     );
   }
 
-  // The custom _buildAppBar method is no longer needed and can be deleted.
+  Widget _buildAppBar(double horizontalPadding) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: 16,
+        left: horizontalPadding,
+        right: horizontalPadding,
+        bottom: 8,
+      ),
+      decoration: const BoxDecoration(color: Color(0xFFFFFFFF)), // Pure white
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Color(0xFFED7C26)),
+            onPressed: _onBackPressed,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Subscription',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF1C110C),
+                fontSize: 18,
+                fontFamily: 'Lexend',
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 48), // Placeholder for symmetry
+        ],
+      ),
+    );
+  }
 
   Widget _buildSectionTitle(String title) {
     return Text(
@@ -187,7 +204,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
               width: 1.5,
               color: isSelected
                   ? const Color(0xFFED7C26)
-                  : const Color(0xFFE0E0E0),
+                  : const Color(0xFFE8D8CE),
             ),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -220,46 +237,31 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  plan['price'],
-                  style: const TextStyle(
-                    color: Color(0xFF1C110C),
-                    fontSize: 16,
-                    fontFamily: 'Lexend',
-                    fontWeight: FontWeight.w500,
+            Container(
+              width: 20,
+              height: 20,
+              decoration: ShapeDecoration(
+                shape: CircleBorder(
+                  side: BorderSide(
+                    width: 2,
+                    color: isSelected
+                        ? const Color(0xFFED7C26)
+                        : const Color(0xFFE8D8CE),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: ShapeDecoration(
-                    shape: CircleBorder(
-                      side: BorderSide(
-                        width: 2,
-                        color: isSelected
-                            ? const Color(0xFFED7C26)
-                            : const Color(0xFFE0E0E0),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFED7C26),
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                  ),
-                  child: isSelected
-                      ? Center(
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFED7C26),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        )
-                      : null,
-                ),
-              ],
+                    )
+                  : null,
             ),
           ],
         ),
@@ -281,7 +283,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
               width: 1.5,
               color: isSelected
                   ? const Color(0xFFED7C26)
-                  : const Color(0xFFE0E0E0),
+                  : const Color(0xFFE8D8CE),
             ),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -308,7 +310,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                     width: 2,
                     color: isSelected
                         ? const Color(0xFFED7C26)
-                        : const Color(0xFFE0E0E0),
+                        : const Color(0xFFE8D8CE),
                   ),
                 ),
               ),
@@ -337,7 +339,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       padding: const EdgeInsets.all(12),
       decoration: ShapeDecoration(
         shape: RoundedRectangleBorder(
-          side: const BorderSide(width: 1.5, color: Color(0xFFE0E0E0)),
+          side: const BorderSide(width: 1.5, color: Color(0xFFE8D8CE)),
           borderRadius: BorderRadius.circular(12),
         ),
       ),
@@ -353,7 +355,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           TextField(
             controller: _phoneNumberController,
             keyboardType: TextInputType.phone,
@@ -400,7 +402,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
           child: Text(
             'Subscribe',
             style: TextStyle(
-              color: Colors.white,
+              color: Color(0xFF1C110C),
               fontSize: 16,
               fontFamily: 'Lexend',
               fontWeight: FontWeight.w700,
