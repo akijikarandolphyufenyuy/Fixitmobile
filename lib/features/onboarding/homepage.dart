@@ -1,15 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-// class Home extends StatelessWidget {
-//   @override
-//   Widget build(BuildContext context) {
-//     // Get screen width for responsiveness
-//     final screenWidth = MediaQuery.of(context).size.width;
-//     final contentPadding = 16.0;
-//     final textWidth =
-//         screenWidth - (contentPadding * 2); // 16px padding on each side
-
 class OnboardingHomePage extends StatelessWidget {
   const OnboardingHomePage({super.key});
 
@@ -19,10 +10,7 @@ class OnboardingHomePage extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final contentPadding = 16.0;
     final textWidth =
-     screenWidth - (contentPadding * 2); // 16px padding on each side
-
-
-
+        screenWidth - (contentPadding * 2); // 16px padding on each side
 
     return SingleChildScrollView(
       child: Container(
@@ -54,8 +42,9 @@ class OnboardingHomePage extends StatelessWidget {
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),
-                          decoration:
-                              const BoxDecoration(color: Color(0xFFFCF9F7)),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFCF9F7),
+                          ),
                           child: Container(
                             clipBehavior: Clip.antiAlias,
                             decoration: ShapeDecoration(
@@ -65,14 +54,14 @@ class OnboardingHomePage extends StatelessWidget {
                               ),
                             ),
                             child: Container(
-                              height: screenWidth *
+                              height:
+                                  screenWidth *
                                   1.2, // Responsive height (e.g., 1.2x screen width)
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 image: DecorationImage(
-                                  image: AssetImage(
-                                      "assets/images/home.png"), // ✅ Use AssetImage if local
-                                  // Or use NetworkImage with full URL if online
+                                  image: AssetImage("assets/images/home.png"),
+
                                   fit: BoxFit.cover,
                                 ),
                               ),
@@ -83,7 +72,11 @@ class OnboardingHomePage extends StatelessWidget {
                         // Title
                         Container(
                           padding: const EdgeInsets.only(
-                              top: 20, left: 16, right: 16, bottom: 12),
+                            top: 20,
+                            left: 16,
+                            right: 16,
+                            bottom: 12,
+                          ),
                           child: SizedBox(
                             width: textWidth,
                             child: Text(
@@ -95,8 +88,7 @@ class OnboardingHomePage extends StatelessWidget {
                                 fontFamily: 'Lexend',
                                 fontWeight: FontWeight.w700,
                                 height: 1.27,
-                                decoration:
-                                    TextDecoration.none, // 🔴 Remove underline
+                                decoration: TextDecoration.none,
                               ),
                             ),
                           ),
@@ -105,7 +97,11 @@ class OnboardingHomePage extends StatelessWidget {
                         // Subtitle
                         Container(
                           padding: const EdgeInsets.only(
-                              top: 4, left: 16, right: 16, bottom: 12),
+                            top: 4,
+                            left: 16,
+                            right: 16,
+                            bottom: 12,
+                          ),
                           child: SizedBox(
                             width: textWidth,
                             child: Text(
@@ -117,8 +113,7 @@ class OnboardingHomePage extends StatelessWidget {
                                 fontFamily: 'Lexend',
                                 fontWeight: FontWeight.w400,
                                 height: 1.50,
-                                decoration:
-                                    TextDecoration.none, // 🔴 Remove underline
+                                decoration: TextDecoration.none,
                               ),
                             ),
                           ),
@@ -139,7 +134,9 @@ class OnboardingHomePage extends StatelessWidget {
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.start,
@@ -159,13 +156,15 @@ class OnboardingHomePage extends StatelessWidget {
                                     child: Container(
                                       height: 48,
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 20),
+                                        horizontal: 20,
+                                      ),
                                       clipBehavior: Clip.antiAlias,
                                       decoration: ShapeDecoration(
                                         color: const Color(0xFFED7C26),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(24),
+                                          borderRadius: BorderRadius.circular(
+                                            24,
+                                          ),
                                         ),
                                       ),
                                       child: Center(
@@ -195,8 +194,9 @@ class OnboardingHomePage extends StatelessWidget {
                         Container(
                           width: double.infinity,
                           height: 20,
-                          decoration:
-                              const BoxDecoration(color: Color(0xFFFCF9F7)),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFCF9F7),
+                          ),
                         ),
                       ],
                     ),

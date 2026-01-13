@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart'; // ✅ Required to access GoRouterState.extra
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
@@ -161,7 +161,7 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               children: [
                 _buildAppBar(context),
-                _buildWelcomeMessageWithCameroonTime(), // ✅ Now uses ONLY real user name
+                _buildWelcomeMessageWithCameroonTime(),
                 _buildJobsHeader(),
                 _buildFilterSection(),
                 Expanded(
@@ -238,9 +238,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// ✅ UPDATED: Displays ONLY real user name — NO fallback
   Widget _buildWelcomeMessageWithCameroonTime() {
-    // ✅ Get the user's name passed from LoginPage via GoRouter 'extra'
     final String? passedName = GoRouterState.of(context).extra as String?;
 
     // ✅ If no name is passed, show empty string — NO fallback like "User"
@@ -261,7 +259,6 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ Only show name if it exists — no dummy names
           if (displayName.isNotEmpty)
             Text(
               'Welcome back, $displayName! We Missed You.',
