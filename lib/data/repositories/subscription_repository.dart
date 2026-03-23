@@ -7,11 +7,12 @@ class SubscriptionRepository {
   /// Add a subscription
   Future<void> addSubscription(Subscription subscription) async {
     try {
-      await _firestore
-          .collection('subscriptions')
-          .add(subscription.toMap());
+      final docRef = _firestore.collection('subscriptions').doc();
+      final data = subscription.toMap();
+      data['id'] = docRef.id;
+      await docRef.set(data);
     } catch (e) {
-      print('Error adding subscription: $e');
+      // Error adding subscription
       rethrow;
     }
   }
@@ -21,16 +22,19 @@ class SubscriptionRepository {
     try {
       QuerySnapshot snapshot = await _firestore
           .collection('subscriptions')
-          .where('userId', isEqualTo: userId)
+          .where('user_id', isEqualTo: userId)
           .limit(1)
           .get();
 
       if (snapshot.docs.isNotEmpty) {
-        return Subscription.fromMap(snapshot.docs.first.data() as Map<String, dynamic>);
+        final first = snapshot.docs.first;
+        final data = first.data() as Map<String, dynamic>;
+        data['id'] = first.id;
+        return Subscription.fromMap(data);
       }
       return null;
     } catch (e) {
-      print('Error fetching user subscription: $e');
+      // Error fetching user subscription
       return null;
     }
   }

@@ -5,16 +5,13 @@ class SubscriptionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color.fromARGB(255, 18, 32, 47),
-      ),
-      home: Scaffold(body: ListView(children: [Sub()])),
-    );
+    return Scaffold(body: ListView(children: [Sub()]));
   }
 }
 
 class Sub extends StatelessWidget {
+  const Sub({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -38,7 +35,7 @@ class Sub extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
+                      SizedBox(
                         width: double.infinity,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -62,7 +59,7 @@ class Sub extends StatelessWidget {
                                     MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Container(
+                                  SizedBox(
                                     width: 48,
                                     height: 48,
                                     child: Row(
@@ -191,7 +188,7 @@ class Sub extends StatelessWidget {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Container(
+                                            SizedBox(
                                               width: 290,
                                               child: Column(
                                                 mainAxisSize: MainAxisSize.min,
@@ -219,7 +216,7 @@ class Sub extends StatelessWidget {
                                                 ],
                                               ),
                                             ),
-                                            Container(
+                                            SizedBox(
                                               width: 290,
                                               child: Column(
                                                 mainAxisSize: MainAxisSize.min,
@@ -295,7 +292,7 @@ class Sub extends StatelessWidget {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Container(
+                                            SizedBox(
                                               width: 290,
                                               child: Column(
                                                 mainAxisSize: MainAxisSize.min,
@@ -323,7 +320,7 @@ class Sub extends StatelessWidget {
                                                 ],
                                               ),
                                             ),
-                                            Container(
+                                            SizedBox(
                                               width: 290,
                                               child: Column(
                                                 mainAxisSize: MainAxisSize.min,
@@ -440,7 +437,7 @@ class Sub extends StatelessWidget {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Expanded(
-                                              child: Container(
+                                              child: SizedBox(
                                                 width: 290,
                                                 child: Column(
                                                   mainAxisSize:
@@ -519,7 +516,7 @@ class Sub extends StatelessWidget {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Expanded(
-                                              child: Container(
+                                              child: SizedBox(
                                                 width: 290,
                                                 child: Column(
                                                   mainAxisSize:
@@ -574,7 +571,7 @@ class Sub extends StatelessWidget {
                           ],
                         ),
                       ),
-                      Container(
+                      SizedBox(
                         width: double.infinity,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,

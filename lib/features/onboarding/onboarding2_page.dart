@@ -35,6 +35,8 @@ class Onboarding2Page extends StatelessWidget {
 }
 
 class St2 extends StatelessWidget {
+  const St2({super.key});
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -182,7 +184,6 @@ class St2 extends StatelessWidget {
                 // Skip Button
                 GestureDetector(
                   onTap: () {
-                    print('Skip button pressed on page 2!');
                     context.go('/login');
                   },
                   child: Container(
@@ -213,7 +214,6 @@ class St2 extends StatelessWidget {
                 // Next Button
                 GestureDetector(
                   onTap: () {
-                    print('Next button pressed on page 2!');
                     context.go('/onboarding/3');
                   },
                   child: Container(

@@ -7,10 +7,10 @@ class ThemeProvider extends InheritedWidget {
   final ToggleThemeCallback toggleTheme;
 
   const ThemeProvider({
-    Key? key,
+    super.key,
     required this.toggleTheme,
-    required Widget child,
-  }) : super(key: key, child: child);
+    required super.child,
+  });
 
   // Static method to get the nearest ThemeProvider instance from the context
   static ThemeProvider of(BuildContext context) {

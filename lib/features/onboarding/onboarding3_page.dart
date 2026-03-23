@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/repositories/auth_repository.dart'; // Adjust path if needed
-import 'package:fixit/data/repositories/auth_repository.dart'; // Make sure this is imported
 
 class Onboarding3Page extends StatelessWidget {
   const Onboarding3Page({super.key});
@@ -31,6 +30,8 @@ class Onboarding3Page extends StatelessWidget {
 }
 
 class St3 extends StatelessWidget {
+  const St3({super.key});
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -151,7 +152,7 @@ class St3 extends StatelessWidget {
                         ),
                         child: GestureDetector(
                           onTap: () async {
-                            print('Get Started button pressed on page 3!');
+                            // Get Started button pressed
                             // ✅ Fixed singleton call
                             await AuthRepository.instance.completeOnboarding();
                             context.push('/signup');
@@ -238,3 +239,5 @@ class St3 extends StatelessWidget {
     );
   }
 }
+
+

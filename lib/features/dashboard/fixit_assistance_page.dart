@@ -11,8 +11,10 @@ const Color assistBorderColor = Color(0xFFE8D8CE); // Border/highlight color
 const Color assistAccentColor = Color(0xFFED7C26); // Accent/Orange color
 
 class FixitAssistancePage extends StatefulWidget {
+  const FixitAssistancePage({super.key});
+
   @override
-  _FixitAssistancePageState createState() => _FixitAssistancePageState();
+  State<FixitAssistancePage> createState() => _FixitAssistancePageState();
 }
 
 class _FixitAssistancePageState extends State<FixitAssistancePage> {
@@ -20,26 +22,22 @@ class _FixitAssistancePageState extends State<FixitAssistancePage> {
   int _selectedIndex =
       0; // Assuming home, adjust based on how you navigate here
 
-  // Dummy data for chat messages
-  final List<Map<String, dynamic>> _messages = [
-    {
+  final List<Map<String, dynamic>> _messages = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    final now = DateTime.now();
+    final time =
+        '${now.hour}:${now.minute.toString().padLeft(2, '0')}';
+
+    _messages.add({
       'sender': 'assistant',
-      'text':
-          "Hello there! I'm here to help you navigate Fixit. What can I assist you with today?",
-      'time': '10:00 AM',
-    },
-    {
-      'sender': 'assistant',
-      'text':
-          "You can ask me to:\n- Post a job\n- Apply for a job\n- Navigate the app\n- Show helpful tips",
-      'time': '10:01 AM',
-    },
-    {
-      'sender': 'assistant',
-      'text': "Or, you can use the quick actions below:",
-      'time': '10:01 AM',
-    },
-  ];
+      'text': "Hi! I can help you with Fixit. What do you want to do today?",
+      'time': time,
+    });
+  }
 
   void _onItemTapped(int index) {
     setState(() {

@@ -2,58 +2,60 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification_item.dart';
 
 class NotificationsRepository {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Add a notification
-  Future<void> addNotification(AppNotification notification) async {
-    try {
-      await _firestore.collection('notifications').add(notification.toMap());
-    } catch (e) {
-      print('Error adding notification: $e');
-      rethrow;
-    }
+  CollectionReference get _col => _db.collection('notifications');
+
+  /// Real-time stream of notifications for a user, newest first.
+  Stream<List<AppNotification>> streamNotifications(String userId) {
+    return _col
+        .where('user_id', isEqualTo: userId)
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map(AppNotification.fromDoc).toList());
   }
 
-  /// Get all notifications for a user
+  /// One-time fetch (kept for backward compat).
   Future<List<AppNotification>> getNotificationsForUser(String userId) async {
     try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('notifications')
+      final snap = await _col
           .where('user_id', isEqualTo: userId)
           .orderBy('created_at', descending: true)
           .get();
-
-      return snapshot.docs
-          .map(
-            (doc) =>
-                AppNotification.fromMap(doc.data() as Map<String, dynamic>),
-          )
-          .toList();
-    } catch (e) {
-      print('Error fetching notifications: $e');
+      return snap.docs.map(AppNotification.fromDoc).toList();
+    } catch (_) {
       return [];
     }
   }
 
-  /// Mark a notification as read
-  Future<void> markAsRead(String notificationId) async {
-    try {
-      await _firestore.collection('notifications').doc(notificationId).update({
-        'is_read': true,
-      });
-    } catch (e) {
-      print('Error marking notification as read: $e');
-      rethrow;
-    }
+  Future<void> addNotification(AppNotification n) async {
+    final ref = _col.doc();
+    await ref.set({...n.toMap(), 'id': ref.id});
   }
 
-  /// Delete a notification
-  Future<void> deleteNotification(String notificationId) async {
-    try {
-      await _firestore.collection('notifications').doc(notificationId).delete();
-    } catch (e) {
-      print('Error deleting notification: $e');
-      rethrow;
+  Future<void> markAsRead(String id) =>
+      _col.doc(id).update({'is_read': true});
+
+  Future<void> markAllAsRead(String userId) async {
+    final snap = await _col
+        .where('user_id', isEqualTo: userId)
+        .where('is_read', isEqualTo: false)
+        .get();
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      batch.update(doc.reference, {'is_read': true});
     }
+    await batch.commit();
+  }
+
+  Future<void> deleteNotification(String id) => _col.doc(id).delete();
+
+  Future<void> clearAll(String userId) async {
+    final snap = await _col.where('user_id', isEqualTo: userId).get();
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 }

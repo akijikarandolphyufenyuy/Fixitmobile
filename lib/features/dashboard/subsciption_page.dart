@@ -3,6 +3,8 @@ import 'package:flutter/services.dart'; // For FilteringTextInputFormatter
 import 'package:go_router/go_router.dart';
 
 class SubscriptionPage extends StatefulWidget {
+  const SubscriptionPage({super.key});
+
   @override
   _SubscriptionPageState createState() => _SubscriptionPageState();
 }
@@ -131,7 +133,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                         const SizedBox(height: 16),
                         ..._plans
                             .map((plan) => _buildPlanOption(plan))
-                            .toList(),
+                            ,
                         const SizedBox(height: 24),
                         const Divider(height: 1, color: Color(0xFFE0E0E0)),
                         const SizedBox(height: 24),
@@ -139,7 +141,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                         const SizedBox(height: 16),
                         ..._paymentMethods
                             .map((method) => _buildPaymentOption(method))
-                            .toList(),
+                            ,
                         const SizedBox(height: 16),
                         // FIX 3: This was already correct, but it was invisible due
                         // to the background color issue. It now works as intended.
@@ -411,3 +413,5 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     );
   }
 }
+
+

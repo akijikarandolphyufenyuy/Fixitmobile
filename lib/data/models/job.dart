@@ -1,10 +1,13 @@
 class Job {
-  final int? id;
+  final String? id;
   final String title;
   final String description;
   final String category;
   final String location;
-  final int postedBy;
+  final String? postedBy;
+  final DateTime? expiresAt;
+  final String? payRange;
+  final bool isClosed;
 
   Job({
     this.id,
@@ -13,6 +16,9 @@ class Job {
     required this.category,
     required this.location,
     required this.postedBy,
+    this.expiresAt,
+    this.payRange,
+    this.isClosed = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -23,17 +29,28 @@ class Job {
       'category': category,
       'location': location,
       'posted_by': postedBy,
+      if (expiresAt != null) 'expires_at': expiresAt!.toIso8601String(),
+      if (payRange != null) 'pay_range': payRange,
+      'is_closed': isClosed,
     };
   }
 
   factory Job.fromMap(Map<String, dynamic> map) {
+    final postedByValue = map['posted_by'];
+    DateTime? expiresAt;
+    if (map['expires_at'] != null) {
+      expiresAt = DateTime.tryParse(map['expires_at'].toString());
+    }
     return Job(
-      id: map['id'],
+      id: map['id']?.toString(),
       title: map['title'],
       description: map['description'],
       category: map['category'],
       location: map['location'],
-      postedBy: map['posted_by'],
+      postedBy: postedByValue?.toString(),
+      expiresAt: expiresAt,
+      payRange: map['pay_range']?.toString(),
+      isClosed: map['is_closed'] == true || map['is_closed'] == 1,
     );
   }
 }

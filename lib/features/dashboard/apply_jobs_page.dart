@@ -1,428 +1,435 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-// Define colors used in SubscriptionPage for consistency
-const Color applyBgColor = Color(0xFFFCF9F7); // Background color
-const Color applyTextColorPrimary = Color(0xFF1C110C); // Primary text color
-const Color applyTextColorSecondary = Color(0xFF996D4C); // Secondary text color
-const Color applyBorderColor = Color(0xFFE8D8CE); // Border/highlight color
-const Color applyAccentColor = Color(0xFFED7C26); // Accent/Orange color
+import '../../data/models/application.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/applications_repository.dart';
+import '../widgets/app_nav_bar.dart';
+
+const _kOrange      = Color(0xFFF77705);
+const _kOrangeDark  = Color(0xFFE86E00);
+const _kOrangeLight = Color(0xFFFF9A3C);
+const _kBrown       = Color(0xFF1C110C);
+const _kBrownMid    = Color(0xFF9E7047);
+const _kBrownLight  = Color(0xFFE8D8CE);
+const _kCream       = Color(0xFFFCF9F7);
+const _kCreamDark   = Color(0xFFF4EDE5);
 
 class ApplyJobsPage extends StatefulWidget {
+  const ApplyJobsPage({super.key});
+
   @override
-  _ApplyJobsPageState createState() => _ApplyJobsPageState();
+  State<ApplyJobsPage> createState() => _ApplyJobsPageState();
 }
 
-class _ApplyJobsPageState extends State<ApplyJobsPage> {
-  int _selectedIndex = 3; // Applications tab selected
+class _ApplyJobsPageState extends State<ApplyJobsPage>
+    with SingleTickerProviderStateMixin {
+  final _applicationsRepository = ApplicationsRepository();
+  final _authRepository = AuthRepository.instance;
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
+  String? _jobId;
+  String? _jobTitle;
+  bool _isSubmitting = false;
 
-      // Navigate using GoRouter
-      switch (index) {
-        case 0:
-          context.go('/dashboard/home');
-          break;
-        case 1:
-          context.go('/dashboard/view-jobs');
-          break;
-        case 2:
-          context.go('/dashboard/post-job');
-          break;
-        case 3:
-          context.go('/dashboard/applications');
-          break;
-        case 4:
-          context.go('/dashboard/settings');
-          break;
-      }
-    });
+  final _fullNameCtrl    = TextEditingController();
+  final _emailCtrl       = TextEditingController();
+  final _phoneCtrl       = TextEditingController();
+  final _coverLetterCtrl = TextEditingController();
+
+  late AnimationController _headerCtrl;
+  late Animation<double>   _headerFade;
+  late Animation<Offset>   _headerSlide;
+
+  double get _headerHeight {
+    final top = WidgetsBinding.instance.platformDispatcher.views.first.padding.top /
+        WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+    return top + 72;
   }
 
-  void _onBackPressed(BuildContext context) {
-    // Navigate back to home
-    context.go('/dashboard/home');
+  @override
+  void initState() {
+    super.initState();
+    _headerCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _headerFade  = CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut);
+    _headerSlide = Tween<Offset>(begin: const Offset(0, -0.15), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOutCubic));
+    _headerCtrl.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final extra = GoRouterState.of(context).extra;
+    if (extra is Map) {
+      _jobId    = extra['jobId']?.toString();
+      _jobTitle = extra['jobTitle']?.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _headerCtrl.dispose();
+    _fullNameCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _coverLetterCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final jobId = _jobId;
+    if (jobId == null || jobId.isEmpty) {
+      _showSnack('Job information is missing', isError: true);
+      return;
+    }
+
+    final applicantId = _authRepository.currentUser?.id;
+    if (applicantId == null || applicantId.isEmpty) {
+      _showSnack('Please log in to apply', isError: true);
+      return;
+    }
+
+    if (_fullNameCtrl.text.trim().isEmpty ||
+        _emailCtrl.text.trim().isEmpty ||
+        _phoneCtrl.text.trim().isEmpty) {
+      _showSnack('Please fill in all required fields', isError: true);
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      await _applicationsRepository.applyForJob(Application(
+        jobId: jobId,
+        applicantId: applicantId,
+        applicantName: _fullNameCtrl.text.trim(),
+        applicantEmail: _emailCtrl.text.trim(),
+        applicantPhone: _phoneCtrl.text.trim(),
+        coverLetter: _coverLetterCtrl.text.trim().isEmpty ? null : _coverLetterCtrl.text.trim(),
+        status: 'pending',
+        dateApplied: DateTime.now(),
+      ));
+      if (!mounted) return;
+      _showSnack('Application sent${_jobTitle != null ? ' for $_jobTitle' : ''}!', isError: false);
+      context.go('/dashboard/jobs');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Failed to submit: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  void _showSnack(String msg, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        bool isWideScreen = constraints.maxWidth > 600;
+    return Scaffold(
+      backgroundColor: _kCream,
+      body: CustomScrollView(
+        slivers: [
+          // ── Header ──────────────────────────────────────────────────────
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: _headerHeight,
+            collapsedHeight: _headerHeight,
+            toolbarHeight: _headerHeight,
+            automaticallyImplyLeading: false,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            flexibleSpace: FadeTransition(
+              opacity: _headerFade,
+              child: _ApplyHeader(
+                jobTitle: _jobTitle,
+                slideAnim: _headerSlide,
+                onBack: () => context.go('/dashboard/jobs'),
+              ),
+            ),
+          ),
 
-        return Scaffold(
-          // --- Changed Background Color ---
-          backgroundColor:
-              applyBgColor, // Use SubscriptionPage background color
-          body: SafeArea(
-            child: Column(
-              children: [
-                // App Bar Section
-                _buildAppBar(context),
-
-                // Apply Job Form
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          // ── Form ────────────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Job title chip
+                  if (_jobTitle != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _kOrange.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _kOrange.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildSectionTitle('Personal Information'),
-                          _buildTextField('Full Name'),
-                          const SizedBox(height: 16),
-                          _buildTextField('Email Address'),
-                          const SizedBox(height: 16),
-                          _buildTextField('Phone Number'),
-                          const SizedBox(height: 24),
-
-                          _buildSectionTitle('Proof of Skills Or CV'),
-                          _buildUploadBox(),
-                          const SizedBox(height: 24),
-
-                          _buildSectionTitle('Cover Letter'),
-                          _buildCoverLetterField(),
-                          const SizedBox(height: 32),
-
-                          _buildApplyButton(),
+                          const Icon(Icons.work_outline_rounded, color: _kOrange, size: 15),
+                          const SizedBox(width: 6),
+                          Text(_jobTitle!,
+                              style: const TextStyle(color: _kOrange, fontSize: 13, fontWeight: FontWeight.w700)),
                         ],
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+                    const SizedBox(height: 24),
+                  ],
 
-          // Bottom Navigation Bar
-          bottomNavigationBar: _buildBottomNavigationBar(),
-        );
-      },
-    );
-  }
-
-  Widget _buildAppBar(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 8),
-      // --- Changed AppBar Background Color ---
-      decoration: const BoxDecoration(color: applyBgColor),
-      child: Row(
-        children: [
-          // Back Button
-          IconButton(
-            // --- Changed Back Icon Color ---
-            icon: Icon(
-              Icons.arrow_back,
-              color: applyTextColorPrimary,
-            ), // Use primary text color
-            onPressed: () => _onBackPressed(context),
-          ),
-
-          const SizedBox(width: 8),
-
-          // Title
-          const Expanded(
-            child: Text(
-              'Apply for Job',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                // --- Changed App Title Color ---
-                color: applyTextColorPrimary, // Use primary text color
-                fontSize: 18,
-                fontFamily: 'Lexend',
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-
-          // Placeholder for symmetry
-          Container(width: 48),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          // --- Changed Section Title Color ---
-          color: applyTextColorPrimary, // Use primary text color
-          fontSize: 18,
-          fontFamily: 'Lexend',
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField(String hintText) {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      padding: const EdgeInsets.all(16),
-      decoration: ShapeDecoration(
-        // --- Potentially Changed Text Field Background Color (Optional) ---
-        // Keeping white background for input fields is common, but if you want consistency:
-        // color: applyBgColor,
-        color: Colors.white, // Keep white for input fields if preferred
-        shape: RoundedRectangleBorder(
-          // --- Changed Text Field Border Color ---
-          side: BorderSide(
-            width: 1,
-            color: applyBorderColor,
-          ), // Use border color
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-      child: TextField(
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            // --- Changed Hint Text Color ---
-            color: applyTextColorSecondary, // Use secondary text color
-            fontSize: 14,
-            fontFamily: 'Lexend',
-            fontWeight: FontWeight.w400,
-          ),
-          border: InputBorder.none,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUploadBox() {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      // --- Changed Upload Box Background Color ---
-      decoration: const BoxDecoration(
-        color: applyBgColor,
-      ), // Match page background
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Container(
-              height: 56,
-              padding: const EdgeInsets.only(
-                top: 16,
-                left: 16,
-                right: 8,
-                bottom: 16,
-              ),
-              clipBehavior: Clip.antiAlias,
-              decoration: ShapeDecoration(
-                // --- Changed Upload Box Inner Background Color ---
-                color:
-                    applyBorderColor, // Use border color for the button background
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Upload File',
-                    style: const TextStyle(
-                      // --- Changed Upload Text Color ---
-                      color: applyTextColorPrimary, // Use primary text color
-                      fontSize: 14,
-                      fontFamily: 'Lexend',
-                      fontWeight: FontWeight.w500,
+                  _sectionLabel('Personal Information'),
+                  const SizedBox(height: 12),
+                  _buildCard([
+                    _InputRow(
+                      icon: Icons.person_rounded,
+                      hint: 'Full Name',
+                      controller: _fullNameCtrl,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 24,
-                    height: 24,
-                    padding: const EdgeInsets.all(2),
-                    child: Icon(
-                      // --- Changed Upload Icon Color ---
-                      Icons.upload,
-                      size: 20,
-                      color: applyTextColorPrimary, // Use primary text color
+                    _divider(),
+                    _InputRow(
+                      icon: Icons.email_rounded,
+                      hint: 'Email Address',
+                      controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
                     ),
-                  ),
+                    _divider(),
+                    _InputRow(
+                      icon: Icons.phone_rounded,
+                      hint: 'Phone Number',
+                      controller: _phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ]),
+
+                  const SizedBox(height: 24),
+                  _sectionLabel('Cover Letter'),
+                  const SizedBox(height: 12),
+                  _buildCard([
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: TextField(
+                        controller: _coverLetterCtrl,
+                        maxLines: 5,
+                        style: const TextStyle(color: _kBrown, fontSize: 14, height: 1.5),
+                        decoration: const InputDecoration(
+                          hintText: 'Tell the employer why you\'re the right fit for this job...',
+                          hintStyle: TextStyle(color: _kBrownMid, fontSize: 14),
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ]),
+
+                  const SizedBox(height: 32),
+                  _buildSubmitButton(),
                 ],
               ),
             ),
           ),
         ],
       ),
+      bottomNavigationBar: const AppNavBar(selectedIndex: 1),
     );
   }
 
-  Widget _buildCoverLetterField() {
-    return Container(
+  Widget _sectionLabel(String label) => Text(
+        label.toUpperCase(),
+        style: const TextStyle(
+            color: _kBrownMid, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2),
+      );
+
+  Widget _buildCard(List<Widget> children) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 4))
+          ],
+        ),
+        child: Column(children: children),
+      );
+
+  Widget _divider() => Padding(
+        padding: const EdgeInsets.only(left: 56),
+        child: Divider(height: 1, color: _kBrownLight.withValues(alpha: 0.6)),
+      );
+
+  Widget _buildSubmitButton() {
+    return SizedBox(
       width: double.infinity,
-      height: 120,
-      padding: const EdgeInsets.all(16),
-      decoration: ShapeDecoration(
-        // --- Potentially Changed Cover Letter Background Color (Optional) ---
-        // Keeping white background for input fields is common, but if you want consistency:
-        // color: applyBgColor,
-        color: Colors.white, // Keep white for input fields if preferred
-        shape: RoundedRectangleBorder(
-          // --- Changed Cover Letter Border Color ---
-          side: BorderSide(
-            width: 1,
-            color: applyBorderColor,
-          ), // Use border color
-          borderRadius: BorderRadius.circular(8),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: _isSubmitting
+              ? const LinearGradient(colors: [_kBrownLight, _kBrownLight])
+              : const LinearGradient(
+                  colors: [_kOrangeDark, _kOrange, _kOrangeLight],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: _isSubmitting
+              ? []
+              : [BoxShadow(color: _kOrange.withValues(alpha: 0.4), blurRadius: 14, offset: const Offset(0, 5))],
         ),
-      ),
-      child: TextField(
-        maxLines: 5,
-        decoration: const InputDecoration(
-          hintText: 'Write your cover letter here...',
-          hintStyle: TextStyle(
-            // --- Changed Cover Letter Hint Color ---
-            color: applyTextColorSecondary, // Use secondary text color
-            fontSize: 14,
-            fontFamily: 'Lexend',
-            fontWeight: FontWeight.w400,
+        child: ElevatedButton(
+          onPressed: _isSubmitting ? null : () { HapticFeedback.mediumImpact(); _submit(); },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-          border: InputBorder.none,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildApplyButton() {
-    return GestureDetector(
-      onTap: () {
-        // Handle apply button tap
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Application submitted successfully!'),
-            // --- Changed SnackBar Background Color ---
-            backgroundColor: applyAccentColor, // Use accent color
-          ),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: ShapeDecoration(
-          // --- Changed Apply Button Background Color ---
-          color:
-              applyTextColorPrimary, // Use primary text color (was #1C140C, now #1C110C)
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child: const Center(
-          child: Text(
-            'Apply',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              // --- Changed Apply Button Text Color ---
-              color: Colors.white, // Keep white text for contrast
-              fontSize: 16,
-              fontFamily: 'Lexend',
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          child: _isSubmitting
+              ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+              : const Text('Submit Application', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         ),
       ),
     );
   }
+}
 
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        // --- Changed Bottom Nav Bar Background Color ---
-        color: applyBgColor, // Use main background color
-        // --- Changed Top Border Color ---
-        border: Border(
-          top: BorderSide(width: 1, color: applyBorderColor),
-        ), // Use border color
-      ),
-      child: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        // --- Changed Selected Item Color ---
-        selectedItemColor: applyTextColorPrimary, // Use primary text color
-        // --- Changed Unselected Item Color ---
-        unselectedItemColor:
-            applyTextColorSecondary, // Use secondary text color
-        selectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontFamily: 'Lexend',
-          fontWeight: FontWeight.w500,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontFamily: 'Lexend',
-          fontWeight: FontWeight.w500,
-        ),
-        // --- Changed Icons to Match Colors ---
-        items: [
-          BottomNavigationBarItem(
-            // --- Changed Icon Color ---
-            icon: Icon(
-              Icons.home,
-              color: _selectedIndex == 0
-                  ? applyTextColorPrimary
-                  : applyTextColorSecondary,
+// ─── Input Row ────────────────────────────────────────────────────────────────
+class _InputRow extends StatelessWidget {
+  final IconData icon;
+  final String hint;
+  final TextEditingController controller;
+  final TextInputType? keyboardType;
+
+  const _InputRow({
+    required this.icon,
+    required this.hint,
+    required this.controller,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: _kOrange.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
             ),
-            // --- Changed Active Icon Color ---
-            activeIcon: Icon(Icons.home, color: applyTextColorPrimary),
-            label: 'Home',
+            child: Icon(icon, color: _kOrange, size: 18),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.work,
-              color: _selectedIndex == 1
-                  ? applyTextColorPrimary
-                  : applyTextColorSecondary,
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              keyboardType: keyboardType,
+              style: const TextStyle(color: _kBrown, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: const TextStyle(color: _kBrownMid, fontSize: 14),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                isDense: true,
+              ),
             ),
-            activeIcon: Icon(Icons.work, color: applyTextColorPrimary),
-            label: 'Jobs',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.add,
-              color: _selectedIndex == 2
-                  ? applyTextColorPrimary
-                  : applyTextColorSecondary,
-            ),
-            activeIcon: Icon(Icons.add, color: applyTextColorPrimary),
-            label: 'Post',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.description,
-              color: _selectedIndex == 3
-                  ? applyTextColorPrimary
-                  : applyTextColorSecondary,
-            ),
-            activeIcon: Icon(Icons.description, color: applyTextColorPrimary),
-            label: 'Applications',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.settings,
-              color: _selectedIndex == 4
-                  ? applyTextColorPrimary
-                  : applyTextColorSecondary,
-            ),
-            activeIcon: Icon(Icons.settings, color: applyTextColorPrimary),
-            label: 'Settings',
           ),
         ],
-        onTap: _onItemTapped, // Added navigation logic
+      ),
+    );
+  }
+}
+
+// ─── Apply Header ─────────────────────────────────────────────────────────────
+class _ApplyHeader extends StatelessWidget {
+  final String? jobTitle;
+  final Animation<Offset> slideAnim;
+  final VoidCallback onBack;
+
+  const _ApplyHeader({
+    required this.jobTitle,
+    required this.slideAnim,
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_kOrangeDark, _kOrange, _kOrangeLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(top: topPadding),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+              child: Opacity(
+                opacity: 0.15,
+                child: Image.asset('assets/images/nn.png', fit: BoxFit.cover),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SlideTransition(
+              position: slideAnim,
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: onBack,
+                    child: Container(
+                      width: 42, height: 42,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('Apply for Job',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3)),
+                        if (jobTitle != null)
+                          Text(jobTitle!,
+                              style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 42, height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

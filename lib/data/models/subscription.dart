@@ -1,6 +1,6 @@
 class Subscription {
-  final int? id;
-  final int userId;
+  final String? id;
+  final String userId;
   final String planName; // e.g., Basic, Premium
   final double price;
   final DateTime startDate;
@@ -19,12 +19,12 @@ class Subscription {
 
   factory Subscription.fromMap(Map<String, dynamic> map) {
     return Subscription(
-      id: map['id'],
-      userId: map['user_id'],
+      id: map['id']?.toString(),
+      userId: (map['user_id'] ?? map['userId'] ?? '').toString(),
       planName: map['plan_name'],
-      price: map['price'],
-      startDate: DateTime.parse(map['start_date']),
-      endDate: DateTime.parse(map['end_date']),
+      price: (map['price'] as num).toDouble(),
+      startDate: DateTime.parse(map['start_date'] as String),
+      endDate: DateTime.parse(map['end_date'] as String),
       isActive: map['is_active'] == 1,
     );
   }

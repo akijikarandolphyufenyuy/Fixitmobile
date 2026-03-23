@@ -86,7 +86,7 @@ class AuthRepository extends ChangeNotifier {
       _isReady = true;
       notifyListeners();
     } catch (e) {
-      print("Error loading user data: $e");
+      // Error loading user data
 
       // Safe fallback
       _currentUser = AppUser(
@@ -125,44 +125,6 @@ class AuthRepository extends ChangeNotifier {
 
   bool isLoggedIn() => _currentUser != null;
 
-  Future<bool> needsSubscription() async {
-    if (!isLoggedIn()) return false;
-    final snap = await _firestore
-        .collection('users')
-        .doc(_currentUser!.id)
-        .get();
-    return snap.data()?['isActiveSubscription'] != true;
-  }
-
-  Future<bool> isFirstRun() async {
-    if (!isLoggedIn()) return false;
-    final snap = await _firestore
-        .collection('users')
-        .doc(_currentUser!.id)
-        .get();
-    final data = snap.data();
-    return data?['onboardingCompleted'] != true;
-  }
-
-  Future<void> markOnboardingComplete() async {
-    if (_currentUser != null) {
-      await _firestore.collection('users').doc(_currentUser!.id).update({
-        'onboardingCompleted': true,
-      });
-    }
-  }
-
-  // lib/data/repositories/auth_repository.dart
-  Future<void> completeOnboarding() async {
-    // This method now calls the existing markOnboardingComplete,
-    // which handles the Firestore update for 'onboardingCompleted'.
-    await markOnboardingComplete();
-    print("User onboarding completed!"); // You can remove this print later
-    // As `isFirstRun` directly queries Firestore, a `notifyListeners()`
-    // here is typically not needed unless `_currentUser` or another
-    // internal state property related to onboarding is introduced and updated.
-  }
-
   // === Auth Actions ===
 
   Future<void> signOut() async {
@@ -189,8 +151,6 @@ class AuthRepository extends ChangeNotifier {
         // so `email.split('@').first` is a good initial fallback for `firstName`.
         'firstName': user.displayName ?? email.split('@').first,
         'lastName': '', // Often collected separately or left blank initially
-        'onboardingCompleted': false,
-        'isActiveSubscription': false,
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     }

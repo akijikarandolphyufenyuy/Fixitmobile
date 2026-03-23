@@ -3,530 +3,658 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
-// Define colors used in SubscriptionPage for consistency
-const Color postJobBgColor = Color(0xFFFFFFFF); // Pure white background
-const Color postJobTextColorPrimary = Color(0xFF1C110C); // Primary text color
-const Color postJobTextColorSecondary = Color(
-  0xFF996D4C,
-); // Secondary text color
-const Color postJobBorderColor = Color(0xFFE8D8CE); // Border/highlight color
-const Color postJobAccentColor = Color(0xFFED7C26); // Accent/Orange color
+import '../../data/models/job.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/jobs_repository.dart';
+import '../widgets/app_nav_bar.dart';
+
+const _kOrange      = Color(0xFFF77705);
+const _kOrangeDark  = Color(0xFFE86E00);
+const _kOrangeLight = Color(0xFFFF9A3C);
+const _kBrown       = Color(0xFF1C110C);
+const _kBrownMid    = Color(0xFF9E7047);
+const _kCream       = Color(0xFFFCF9F7);
+const _kBrownLight  = Color(0xFFE8D8CE);
+
+const _kCameroonRegions = [
+  'Adamawa', 'Centre', 'East', 'Far North', 'Littoral',
+  'North', 'North West', 'South', 'South West', 'West',
+];
+
+const _kFallbackProfessions = [
+  'Plumbing', 'Electrical', 'Cleaning', 'Selling', 'Hair Dressing',
+  'Farming', 'Carpentry', 'Building / Masonry', 'Painting', 'Welding',
+  'Mechanics', 'Tailoring', 'Cooking / Catering', 'Security', 'Driving',
+  'Other',
+];
 
 class PostJobPage extends StatefulWidget {
+  const PostJobPage({super.key});
+
   @override
-  _PostJobPageState createState() => _PostJobPageState();
+  State<PostJobPage> createState() => _PostJobPageState();
 }
 
-class _PostJobPageState extends State<PostJobPage> {
-  int _selectedIndex = 2; // Post tab selected
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _payRangeController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _contactInfoController = TextEditingController();
-  final TextEditingController _jobTypeController = TextEditingController();
+class _PostJobPageState extends State<PostJobPage> with SingleTickerProviderStateMixin {
+  final _titleCtrl   = TextEditingController();
+  final _descCtrl    = TextEditingController();
+  final _payCtrl     = TextEditingController();
+  final _contactCtrl = TextEditingController();
+  final _otherJobTypeCtrl = TextEditingController();
+
+  String? _selectedLocation;
+  String? _selectedJobType;
+  DateTime? _expiresAt;
 
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
+  bool _isPosting = false;
 
-  // ✅ NEW: Store referrer from query parameter
-  String? _referrer;
+  List<String> _jobTypeOptions = [];
+  bool _loadingProfessions = true;
 
-  // ✅ NEW: Read 'from' parameter on route change
+  late AnimationController _headerCtrl;
+  late Animation<double> _headerFade;
+  late Animation<Offset> _headerSlide;
+
+  double get _headerHeight {
+    final topPadding = WidgetsBinding.instance.platformDispatcher.views.first.padding.top /
+        WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+    return topPadding + 72;
+  }
+
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final state = GoRouterState.of(context);
-    _referrer = state.uri.queryParameters['from'];
+  void initState() {
+    super.initState();
+    _headerCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _headerFade = CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut);
+    _headerSlide = Tween<Offset>(begin: const Offset(0.12, 0), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOutCubic));
+    _headerCtrl.forward();
+    _loadProfessions();
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-
-      switch (index) {
-        case 0:
-          context.go('/dashboard/home');
-          break;
-        case 1:
-          context.go('/dashboard/view-jobs');
-          break;
-        case 2:
-          context.go('/dashboard/post-job');
-          break;
-        case 3:
-          context.go('/dashboard/applications');
-          break;
-        case 4:
-          context.go('/dashboard/settings');
-          break;
-      }
-    });
-  }
-
-  // ✅ UPDATED: Navigate back to referrer if exists, else fallback to home
-  void _onBackPressed(BuildContext context) {
-    // If user came from Assistance (or any page via ?from=...), go back there
-    if (_referrer != null && _referrer!.isNotEmpty) {
-      context.go(_referrer!);
-    } else {
-      // Otherwise, fallback to home
-      context.go('/dashboard/home');
+  Future<void> _loadProfessions() async {
+    final fromDb = await JobsRepository().getDistinctProfessions();
+    final merged = <String>{};
+    // Add fallback list first (minus 'Other'), then DB ones, then 'Other' last
+    for (final p in _kFallbackProfessions) {
+      if (p != 'Other') merged.add(p);
     }
+    for (final p in fromDb) {
+      merged.add(_capitalize(p));
+    }
+    if (mounted) {
+      setState(() {
+        _jobTypeOptions = [...merged, 'Other'];
+        _loadingProfessions = false;
+      });
+    }
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+  @override
+  void dispose() {
+    _headerCtrl.dispose();
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    _payCtrl.dispose();
+    _contactCtrl.dispose();
+    _otherJobTypeCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _pickImage() async {
     try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-      );
-
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-        });
-      } else {
-        print('No image selected.');
-      }
+      final XFile? f = await _picker.pickImage(source: ImageSource.gallery);
+      if (f != null) setState(() => _selectedImage = File(f.path));
     } catch (e) {
-      print('Error picking image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error picking image: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnack('Error picking image: $e', isError: true);
     }
   }
 
-  void _onPostJob() {
-    if (_titleController.text.isEmpty || _descriptionController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all required fields'),
-          backgroundColor: Colors.red,
+  Future<void> _pickExpiration() async {
+    // Step 1: pick date
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(days: 7)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: _kOrange,
+            onPrimary: Colors.white,
+            onSurface: _kBrown,
+          ),
         ),
-      );
-      return;
-    }
-
-    print('Selected Image Path: ${_selectedImage?.path}');
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Job posted successfully!'),
-        backgroundColor: Colors.green,
+        child: child!,
       ),
     );
+    if (date == null || !mounted) return;
 
-    _titleController.clear();
-    _descriptionController.clear();
-    _payRangeController.clear();
-    _locationController.clear();
-    _contactInfoController.clear();
-    _jobTypeController.clear();
+    // Step 2: pick time
+    final time = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 17, minute: 0),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: _kOrange,
+            onPrimary: Colors.white,
+            onSurface: _kBrown,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (time == null || !mounted) return;
+
     setState(() {
-      _selectedImage = null;
+      _expiresAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     });
   }
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    _payRangeController.dispose();
-    _locationController.dispose();
-    _contactInfoController.dispose();
-    _jobTypeController.dispose();
-    super.dispose();
+  String _formatExpiration(DateTime dt) {
+    final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour < 12 ? 'AM' : 'PM';
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}  •  $hour:$minute $period';
+  }
+
+  Future<void> _onPostJob() async {
+    final effectiveJobType = _selectedJobType == 'Other'
+        ? _otherJobTypeCtrl.text.trim()
+        : _selectedJobType ?? '';
+
+    if (_titleCtrl.text.trim().isEmpty || _descCtrl.text.trim().isEmpty ||
+        effectiveJobType.isEmpty || _selectedLocation == null) {
+      _showSnack('Please fill in all required fields', isError: true);
+      return;
+    }
+
+    final postedBy = AuthRepository.instance.currentUser?.id;
+    if (postedBy == null || postedBy.isEmpty) {
+      _showSnack('Please log in to post a job', isError: true);
+      return;
+    }
+
+    setState(() => _isPosting = true);
+    try {
+      await JobsRepository().postJob(Job(
+        title: _titleCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        category: effectiveJobType,
+        location: _selectedLocation!,
+        postedBy: postedBy,
+        expiresAt: _expiresAt,
+      ));
+      if (!mounted) return;
+      _showSnack('Job posted successfully!', isError: false);
+      _titleCtrl.clear();
+      _descCtrl.clear();
+      _payCtrl.clear();
+      _contactCtrl.clear();
+      _otherJobTypeCtrl.clear();
+      setState(() {
+        _selectedLocation = null;
+        _selectedJobType = null;
+        _expiresAt = null;
+        _selectedImage = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Failed to post job: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isPosting = false);
+    }
+  }
+
+  void _showSnack(String msg, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      // ✅ Handle system back button too
-      onWillPop: () async {
-        if (_referrer != null && _referrer!.isNotEmpty) {
-          context.go(_referrer!);
-          return false; // Prevent default pop
-        }
-        return true; // Allow default behavior (e.g., go to previous route or exit)
-      },
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          bool isWideScreen = constraints.maxWidth > 600;
-
-          return Scaffold(
-            backgroundColor: postJobBgColor,
-            body: SafeArea(
+    return Scaffold(
+      backgroundColor: _kCream,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: _headerHeight,
+            collapsedHeight: _headerHeight,
+            toolbarHeight: _headerHeight,
+            automaticallyImplyLeading: false,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            flexibleSpace: FadeTransition(
+              opacity: _headerFade,
+              child: _PostJobHeader(
+                onBack: () => context.go('/dashboard/home'),
+                slideAnim: _headerSlide,
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildAppBar(context),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSectionTitle('Job Title'),
-                            _buildTextField(
-                              'Enter job title',
-                              _titleController,
-                            ),
-                            const SizedBox(height: 24),
+                  _Field(label: 'Job Title *', hint: 'e.g. Plumber needed urgently', controller: _titleCtrl),
+                  _buildJobTypeDropdown(),
+                  if (_selectedJobType == 'Other') ...[
+                    const SizedBox(height: 16),
+                    _Field(label: 'Specify Job Type *', hint: 'Describe the job type', controller: _otherJobTypeCtrl),
+                  ],
+                  const SizedBox(height: 16),
+                  _buildLocationDropdown(),
+                  const SizedBox(height: 16),
+                  _Field(label: 'Job Description *', hint: 'Describe the job in detail...', controller: _descCtrl, maxLines: 4),
+                  _Field(label: 'Pay Range', hint: 'e.g. 5,000 – 15,000 FCFA', controller: _payCtrl, icon: Icons.payments_rounded),
+                  _Field(label: 'Contact Info', hint: 'Phone or WhatsApp number', controller: _contactCtrl, icon: Icons.phone_rounded),
+                  const SizedBox(height: 4),
+                  _buildExpirationPicker(),
+                  const SizedBox(height: 16),
+                  _buildImagePicker(),
+                  const SizedBox(height: 28),
+                  _buildPostButton(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: const AppNavBar(selectedIndex: 2),
+    );
+  }
 
-                            _buildSectionTitle('Job Description'),
-                            _buildDescriptionField(
-                              'Enter job description',
-                              _descriptionController,
-                            ),
-                            const SizedBox(height: 24),
+  // ── Job Type Dropdown ────────────────────────────────────────────────────────
+  Widget _buildJobTypeDropdown() {
+    return _DropdownField(
+      label: 'Job Type / Category *',
+      hint: _loadingProfessions ? 'Loading...' : 'Select a job type',
+      icon: Icons.work_outline_rounded,
+      value: _selectedJobType,
+      items: _jobTypeOptions,
+      onChanged: _loadingProfessions ? null : (val) => setState(() => _selectedJobType = val),
+    );
+  }
 
-                            _buildSectionTitle('Job Type'),
-                            _buildTextField(
-                              'Enter job type (e.g., Plumbing, Electrical)',
-                              _jobTypeController,
-                            ),
-                            const SizedBox(height: 24),
+  // ── Location Dropdown ────────────────────────────────────────────────────────
+  Widget _buildLocationDropdown() {
+    return _DropdownField(
+      label: 'Location *',
+      hint: 'Select a region',
+      icon: Icons.location_on_rounded,
+      value: _selectedLocation,
+      items: _kCameroonRegions,
+      onChanged: (val) => setState(() => _selectedLocation = val),
+    );
+  }
 
-                            _buildSectionTitle('Pay Range'),
-                            _buildTextField(
-                              'Enter pay range',
-                              _payRangeController,
-                            ),
-                            const SizedBox(height: 24),
+  // ── Expiration Picker ────────────────────────────────────────────────────────
+  Widget _buildExpirationPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Job Expiration Date',
+            style: TextStyle(color: _kBrownMid, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _pickExpiration,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _expiresAt != null ? _kOrange : _kBrownLight),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_month_rounded,
+                    color: _expiresAt != null ? _kOrange : _kBrownMid, size: 18),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _expiresAt != null ? _formatExpiration(_expiresAt!) : 'Tap to set expiration date & time',
+                    style: TextStyle(
+                      color: _expiresAt != null ? _kBrown : _kBrownMid,
+                      fontSize: 14,
+                      fontWeight: _expiresAt != null ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+                if (_expiresAt != null)
+                  GestureDetector(
+                    onTap: () => setState(() => _expiresAt = null),
+                    child: const Icon(Icons.close_rounded, color: _kBrownMid, size: 18),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-                            _buildSectionTitle('Contact Info'),
-                            _buildTextField(
-                              'Enter contact information',
-                              _contactInfoController,
-                            ),
-                            const SizedBox(height: 24),
+  // ── Image Picker ─────────────────────────────────────────────────────────────
+  Widget _buildImagePicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Upload Image (Optional)',
+            style: TextStyle(color: _kBrownMid, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _pickImage,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _kBrownLight),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.upload_rounded, color: _selectedImage != null ? _kOrange : _kBrownMid, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _selectedImage != null ? 'Image selected ✓' : 'Tap to select an image',
+                    style: TextStyle(
+                      color: _selectedImage != null ? _kOrange : _kBrownMid,
+                      fontSize: 14,
+                      fontWeight: _selectedImage != null ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+                if (_selectedImage != null)
+                  GestureDetector(
+                    onTap: () => setState(() => _selectedImage = null),
+                    child: const Icon(Icons.close_rounded, color: _kBrownMid, size: 18),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-                            _buildSectionTitle('Location'),
-                            _buildTextField(
-                              'Enter location',
-                              _locationController,
-                            ),
-                            const SizedBox(height: 24),
+  // ── Post Button ──────────────────────────────────────────────────────────────
+  Widget _buildPostButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: _isPosting
+              ? const LinearGradient(colors: [_kBrownLight, _kBrownLight])
+              : const LinearGradient(
+                  colors: [_kOrangeDark, _kOrange, _kOrangeLight],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: _isPosting
+              ? []
+              : [BoxShadow(color: _kOrange.withValues(alpha: 0.4), blurRadius: 14, offset: const Offset(0, 5))],
+        ),
+        child: ElevatedButton(
+          onPressed: _isPosting ? null : _onPostJob,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          child: _isPosting
+              ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+              : const Text('Post Job', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        ),
+      ),
+    );
+  }
+}
 
-                            _buildSectionTitle('Upload Image (Optional)'),
-                            _buildImagePickerField(),
-                            const SizedBox(height: 32),
+// ─── Dropdown Field ───────────────────────────────────────────────────────────
+class _DropdownField extends StatelessWidget {
+  final String label;
+  final String hint;
+  final IconData icon;
+  final String? value;
+  final List<String> items;
+  final ValueChanged<String?>? onChanged;
 
-                            _buildPostButton(),
-                          ],
+  const _DropdownField({
+    required this.label,
+    required this.hint,
+    required this.icon,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(color: _kBrownMid, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: value != null ? _kOrange : _kBrownLight),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              hint: Row(
+                children: [
+                  Icon(icon, color: _kBrownMid, size: 18),
+                  const SizedBox(width: 10),
+                  Text(hint, style: const TextStyle(color: _kBrownMid, fontSize: 14)),
+                ],
+              ),
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _kBrownMid),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              borderRadius: BorderRadius.circular(14),
+              dropdownColor: Colors.white,
+              style: const TextStyle(color: _kBrown, fontSize: 14, fontFamily: 'default'),
+              onChanged: onChanged,
+              selectedItemBuilder: (context) => items.map((item) => Row(
+                children: [
+                  Icon(icon, color: _kOrange, size: 18),
+                  const SizedBox(width: 10),
+                  Text(item, style: const TextStyle(color: _kBrown, fontSize: 14, fontWeight: FontWeight.w600)),
+                ],
+              )).toList(),
+              items: items.map((item) {
+                final isOther = item == 'Other';
+                return DropdownMenuItem<String>(
+                  value: item,
+                  child: Row(
+                    children: [
+                      Icon(
+                        isOther ? Icons.edit_rounded : icon,
+                        color: isOther ? _kOrange : _kBrownMid,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        item,
+                        style: TextStyle(
+                          color: isOther ? _kOrange : _kBrown,
+                          fontSize: 14,
+                          fontWeight: isOther ? FontWeight.w700 : FontWeight.w400,
                         ),
                       ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Reusable Text Field ──────────────────────────────────────────────────────
+class _Field extends StatelessWidget {
+  final String label;
+  final String hint;
+  final TextEditingController controller;
+  final int maxLines;
+  final IconData? icon;
+
+  const _Field({
+    required this.label,
+    required this.hint,
+    required this.controller,
+    this.maxLines = 1,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(color: _kBrownMid, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _kBrownLight),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
+            ),
+            child: TextField(
+              controller: controller,
+              maxLines: maxLines,
+              style: const TextStyle(color: _kBrown, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: const TextStyle(color: _kBrownMid, fontSize: 14),
+                prefixIcon: icon != null ? Icon(icon, color: _kOrange, size: 18) : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Post Job Header ──────────────────────────────────────────────────────────
+class _PostJobHeader extends StatelessWidget {
+  final VoidCallback onBack;
+  final Animation<Offset> slideAnim;
+
+  const _PostJobHeader({required this.onBack, required this.slideAnim});
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_kOrangeDark, _kOrange, _kOrangeLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(top: topPadding),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -6,
+            bottom: -8,
+            child: Opacity(
+              opacity: 0.16,
+              child: Image.asset('assets/images/home.png', height: 88, fit: BoxFit.contain),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+            child: SlideTransition(
+              position: slideAnim,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onBack,
+                      borderRadius: BorderRadius.circular(22),
+                      splashColor: Colors.white.withValues(alpha: 0.25),
+                      child: Container(
+                        width: 42, height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1),
+                        ),
+                        child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+                      ),
                     ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Create', style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 12, fontWeight: FontWeight.w400)),
+                        const SizedBox(height: 2),
+                        const Text('Post a Job',
+                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.1)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 42, height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1),
+                    ),
+                    child: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 20),
                   ),
                 ],
               ),
             ),
-            bottomNavigationBar: _buildBottomNavigationBar(),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildAppBar(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 8),
-      decoration: const BoxDecoration(color: postJobBgColor),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(Icons.arrow_back, color: postJobTextColorPrimary),
-            onPressed: () => _onBackPressed(context),
-          ),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'Post a Job',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: postJobTextColorPrimary,
-                fontSize: 18,
-                fontFamily: 'Lexend',
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Container(width: 48),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: postJobTextColorPrimary,
-          fontSize: 16,
-          fontFamily: 'Lexend',
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField(String hintText, TextEditingController controller) {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      padding: const EdgeInsets.all(16),
-      decoration: ShapeDecoration(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(width: 1, color: postJobBorderColor),
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            color: postJobTextColorSecondary,
-            fontSize: 14,
-            fontFamily: 'Lexend',
-            fontWeight: FontWeight.w400,
-          ),
-          border: InputBorder.none,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDescriptionField(
-    String hintText,
-    TextEditingController controller,
-  ) {
-    return Container(
-      width: double.infinity,
-      height: 120,
-      padding: const EdgeInsets.all(16),
-      decoration: ShapeDecoration(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(width: 1, color: postJobBorderColor),
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        maxLines: 5,
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            color: postJobTextColorSecondary,
-            fontSize: 14,
-            fontFamily: 'Lexend',
-            fontWeight: FontWeight.w400,
-          ),
-          border: InputBorder.none,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildImagePickerField() {
-    return GestureDetector(
-      onTap: _pickImage,
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: ShapeDecoration(
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            side: BorderSide(width: 1, color: postJobBorderColor),
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.upload, color: postJobTextColorSecondary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _selectedImage != null
-                    ? 'Image Selected'
-                    : 'Tap to select an image',
-                style: const TextStyle(
-                  color: postJobTextColorSecondary,
-                  fontSize: 14,
-                  fontFamily: 'Lexend',
-                  fontWeight: FontWeight.w400,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (_selectedImage != null)
-              Icon(Icons.check_circle, color: postJobAccentColor, size: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPostButton() {
-    return GestureDetector(
-      onTap: _onPostJob,
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: ShapeDecoration(
-          color: postJobAccentColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child: const Center(
-          child: Text(
-            'Post Job',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 16,
-              fontFamily: 'Lexend',
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: postJobBgColor,
-        border: Border(top: BorderSide(width: 1, color: postJobBorderColor)),
-      ),
-      child: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: postJobTextColorSecondary,
-        selectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontFamily: 'Lexend',
-          fontWeight: FontWeight.w500,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontFamily: 'Lexend',
-          fontWeight: FontWeight.w500,
-        ),
-        items: [
-          BottomNavigationBarItem(
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _selectedIndex == 0
-                    ? postJobAccentColor
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.home,
-                color: _selectedIndex == 0
-                    ? Colors.black
-                    : postJobTextColorSecondary,
-                size: 18,
-              ),
-            ),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _selectedIndex == 1
-                    ? postJobAccentColor
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.work,
-                color: _selectedIndex == 1
-                    ? Colors.black
-                    : postJobTextColorSecondary,
-                size: 18,
-              ),
-            ),
-            label: 'Jobs',
-          ),
-          BottomNavigationBarItem(
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _selectedIndex == 2
-                    ? postJobAccentColor
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.add,
-                color: _selectedIndex == 2
-                    ? Colors.black
-                    : postJobTextColorSecondary,
-                size: 18,
-              ),
-            ),
-            label: 'Post',
-          ),
-          BottomNavigationBarItem(
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _selectedIndex == 3
-                    ? postJobAccentColor
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.description,
-                color: _selectedIndex == 3
-                    ? Colors.black
-                    : postJobTextColorSecondary,
-                size: 18,
-              ),
-            ),
-            label: 'Applications',
-          ),
-          BottomNavigationBarItem(
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _selectedIndex == 4
-                    ? postJobAccentColor
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.settings,
-                color: _selectedIndex == 4
-                    ? Colors.black
-                    : postJobTextColorSecondary,
-                size: 18,
-              ),
-            ),
-            label: 'Settings',
           ),
         ],
-        onTap: _onItemTapped,
       ),
     );
   }

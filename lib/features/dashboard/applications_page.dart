@@ -1,112 +1,92 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart'; // Import go_router for navigation
+import 'package:go_router/go_router.dart';
 
-// Define colors used in SubscriptionPage for consistency
-// These can also be defined in a central theme/constants file
-const Color appBgColor = Color(
-  0xFFFFFFFF, // Pure white background
-);
-const Color appTextColorPrimary = Color(0xFF1C110C); // Primary text color
-const Color appTextColorSecondary = Color(0xFF996D4C); // Secondary text color
-const Color appBorderColor = Color(0xFFE8D8CE); // Border/highlight color
-const Color appAccentColor = Color(0xFFED7C26); // Accent/Orange color
+import '../../data/models/application.dart';
+import '../../data/models/job.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/applications_repository.dart';
+import '../../data/repositories/jobs_repository.dart';
+import '../widgets/app_nav_bar.dart';
+
+const _kOrange      = Color(0xFFF77705);
+const _kOrangeDark  = Color(0xFFE86E00);
+const _kOrangeLight = Color(0xFFFF9A3C);
+const _kBrown       = Color(0xFF1C110C);
+const _kBrownMid    = Color(0xFF9E7047);
+const _kCream       = Color(0xFFFCF9F7);
+const _kCreamDark   = Color(0xFFF4EDE5);
+const _kBrownLight  = Color(0xFFE8D8CE);
 
 class ApplicationsPage extends StatefulWidget {
+  const ApplicationsPage({super.key});
+
   @override
-  _ApplicationsPageState createState() => _ApplicationsPageState();
+  State<ApplicationsPage> createState() => _ApplicationsPageState();
 }
 
-class _ApplicationsPageState extends State<ApplicationsPage> {
-  int _selectedIndex = 3; // Applications tab selected
+class _ApplicationRow {
+  final Job job;
+  final Application application;
+  const _ApplicationRow({required this.job, required this.application});
+}
+
+class _ApplicationsPageState extends State<ApplicationsPage> with SingleTickerProviderStateMixin {
   String jobTypeFilter = '';
 
-  // Dummy data for applicants with more details
-  final List<Map<String, dynamic>> allApplicants = [
-    {
-      'id': 1,
-      'name': 'Nadia Kameni',
-      'email': 'nadia.kameni@email.com',
-      'phone': '+237 6 123 456 78',
-      'jobType': 'Hair Styling',
-      'message':
-          'I have 5 years of experience in hair styling and would love to work on this project.',
-      'image': 'assets/images/hair.png',
-    },
-    {
-      'id': 2,
-      'name': 'Jean-Pierre Njoya',
-      'email': 'jp.njoya@email.com',
-      'phone': '+237 6 234 567 89',
-      'jobType': 'Plumbing',
-      'message':
-          'Professional plumber with 10 years experience. Available immediately.',
-      'image': 'assets/images/tap.png',
-    },
-    {
-      'id': 3,
-      'name': 'Marie-Claire Ndi',
-      'email': 'marie.claire@email.com',
-      'phone': '+237 6 345 678 90',
-      'jobType': 'Electrical',
-      'message': 'Certified electrician with expertise in residential wiring.',
-      'image': 'assets/images/ub1.png',
-    },
-    {
-      'id': 4,
-      'name': 'Ahmed Mbarga',
-      'email': 'ahmed.mbarga@email.com',
-      'phone': '+237 6 456 789 01',
-      'jobType': 'Hair Styling',
-      'message': 'Specialized in bridal hair styling and makeup artistry.',
-      'image': 'assets/images/hair.png',
-    },
-    {
-      'id': 5,
-      'name': 'Patrice Talla',
-      'email': 'patrice.talla@email.com',
-      'phone': '+237 6 567 890 12',
-      'jobType': 'Electrical',
-      'message':
-          'Experienced in both residential and commercial electrical work.',
-      'image': 'assets/images/cable.png',
-    },
-  ];
+  final JobsRepository _jobsRepository = JobsRepository();
+  final ApplicationsRepository _applicationsRepository = ApplicationsRepository();
+  final AuthRepository _authRepository = AuthRepository.instance;
 
-  List<Map<String, dynamic>> filteredApplicants = [];
+  bool _isLoading = true;
+  List<_ApplicationRow> allApplicants = [];
+  List<_ApplicationRow> filteredApplicants = [];
+
+  late AnimationController _headerCtrl;
+  late Animation<double> _headerFade;
+  late Animation<Offset> _headerSlide;
+
+  double get _headerHeight {
+    final topPadding = WidgetsBinding.instance.platformDispatcher.views.first.padding.top /
+        WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+    return topPadding + 72;
+  }
 
   @override
   void initState() {
     super.initState();
-    filteredApplicants = List.from(allApplicants);
+    _headerCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _headerFade = CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut);
+    _headerSlide = Tween<Offset>(begin: const Offset(0.12, 0), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOutCubic));
+    _loadApplications();
+    _headerCtrl.forward();
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-
-      // Navigate using GoRouter
-      switch (index) {
-        case 0:
-          context.go('/dashboard/home');
-          break;
-        case 1:
-          context.go('/dashboard/view-jobs');
-          break;
-        case 2:
-          context.go('/dashboard/post-job');
-          break;
-        case 3:
-          // Already on applications page
-          break;
-        case 4:
-          context.go('/dashboard/settings');
-          break;
-      }
-    });
+  @override
+  void dispose() {
+    _headerCtrl.dispose();
+    super.dispose();
   }
 
-  void _onBackPressed(BuildContext context) {
-    context.go('/dashboard/home');
+  Future<void> _loadApplications() async {
+    setState(() => _isLoading = true);
+    final userId = _authRepository.currentUser?.id;
+    if (userId == null || userId.isEmpty) {
+      if (!mounted) return;
+      setState(() { allApplicants = []; filteredApplicants = []; _isLoading = false; });
+      return;
+    }
+
+    final postedJobs = await _jobsRepository.getJobsByPostedBy(userId);
+    final List<_ApplicationRow> rows = [];
+    for (final job in postedJobs) {
+      if (job.id == null || job.id!.isEmpty) continue;
+      final apps = await _applicationsRepository.getApplicationsByJob(job.id!);
+      for (final app in apps) { rows.add(_ApplicationRow(job: job, application: app)); }
+    }
+
+    if (!mounted) return;
+    setState(() { allApplicants = rows; filteredApplicants = List.from(rows); _isLoading = false; });
   }
 
   void _applyFilters() {
@@ -114,487 +94,430 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
       if (jobTypeFilter.isEmpty) {
         filteredApplicants = List.from(allApplicants);
       } else {
-        filteredApplicants = allApplicants
-            .where(
-              (applicant) => applicant['jobType']
-                  .toString()
-                  .toLowerCase()
-                  .contains(jobTypeFilter.toLowerCase()),
-            )
-            .toList();
+        final q = jobTypeFilter.toLowerCase();
+        filteredApplicants = allApplicants.where((r) =>
+          r.job.category.toLowerCase().contains(q) ||
+          r.job.title.toLowerCase().contains(q)).toList();
       }
     });
   }
 
-  void _acceptApplication(Map<String, dynamic> applicant) {
-    // Remove applicant from the list
+  Future<void> _acceptApplication(_ApplicationRow row) async {
+    if (row.application.id != null && row.application.id!.isNotEmpty) {
+      await _applicationsRepository.updateApplicationStatus(applicationId: row.application.id!, status: 'accepted');
+    }
+    if (!mounted) return;
     setState(() {
-      allApplicants.removeWhere((app) => app['id'] == applicant['id']);
-      filteredApplicants.removeWhere((app) => app['id'] == applicant['id']);
+      allApplicants.removeWhere((r) => r.application.id == row.application.id);
+      filteredApplicants.removeWhere((r) => r.application.id == row.application.id);
     });
-
-    // Show notification
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Application accepted for ${applicant['name']}'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    // In a real app, you would send a notification to the applicant here
-    print('Notification sent: Application accepted for ${applicant['name']}');
+    _showResultDialog(true, row.application.applicantName);
   }
 
-  void _declineApplication(Map<String, dynamic> applicant) {
-    // Remove applicant from the list
+  Future<void> _declineApplication(_ApplicationRow row) async {
+    if (row.application.id != null && row.application.id!.isNotEmpty) {
+      await _applicationsRepository.updateApplicationStatus(applicationId: row.application.id!, status: 'rejected');
+    }
+    if (!mounted) return;
     setState(() {
-      allApplicants.removeWhere((app) => app['id'] == applicant['id']);
-      filteredApplicants.removeWhere((app) => app['id'] == applicant['id']);
+      allApplicants.removeWhere((r) => r.application.id == row.application.id);
+      filteredApplicants.removeWhere((r) => r.application.id == row.application.id);
     });
+    _showResultDialog(false, row.application.applicantName);
+  }
 
-    // Show notification
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Application declined for ${applicant['name']}'),
-        backgroundColor: Colors.red,
+  void _showResultDialog(bool accepted, String name) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64, height: 64,
+                decoration: BoxDecoration(
+                  color: accepted ? Colors.green.withValues(alpha: 0.12) : Colors.red.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  accepted ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                  color: accepted ? Colors.green : Colors.red,
+                  size: 36,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                accepted ? 'Application Accepted' : 'Application Declined',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                accepted ? '$name has been accepted for the position.' : '$name\'s application has been declined.',
+                style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accepted ? Colors.green : Colors.red,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
-
-    // In a real app, you would send a notification to the applicant here
-    print('Notification sent: Application declined for ${applicant['name']}');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // --- Changed Background Color ---
-      backgroundColor: appBgColor, // Use pure white background
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildAppBar(context),
-            _buildFilterSection(),
-            Expanded(
-              // Use Expanded to take the remaining space
-              child: Container(
-                padding: const EdgeInsets.all(16.0),
-                child: ListView.builder(
-                  itemCount: filteredApplicants.length,
-                  itemBuilder: (context, index) {
-                    return Container(
-                      // Optional: Add padding between cards for visual separation
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: _buildApplicantCard(filteredApplicants[index]),
-                    );
-                  },
-                ),
+      backgroundColor: _kCream,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: _headerHeight,
+            collapsedHeight: _headerHeight,
+            toolbarHeight: _headerHeight,
+            automaticallyImplyLeading: false,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            flexibleSpace: FadeTransition(
+              opacity: _headerFade,
+              child: _ApplicationsHeader(
+                onBack: () => context.go('/dashboard/home'),
+                slideAnim: _headerSlide,
+                pendingCount: filteredApplicants.length,
               ),
             ),
+          ),
+          SliverToBoxAdapter(child: _buildSearchBar()),
+          _isLoading
+              ? const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: _kOrange)))
+              : filteredApplicants.isEmpty
+                  ? SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.inbox_rounded, size: 64, color: _kBrownLight),
+                            const SizedBox(height: 12),
+                            const Text('No applications yet', style: TextStyle(color: _kBrownMid, fontSize: 16)),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _buildApplicantCard(filteredApplicants[index], index),
+                        childCount: filteredApplicants.length,
+                      ),
+                    ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ),
+      bottomNavigationBar: const AppNavBar(selectedIndex: 3),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))],
+        ),
+        child: TextField(
+          decoration: const InputDecoration(
+            hintText: 'Filter by job type or category...',
+            hintStyle: TextStyle(color: _kBrownMid, fontSize: 14),
+            prefixIcon: Icon(Icons.search_rounded, color: _kOrange, size: 22),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+          onChanged: (v) { jobTypeFilter = v; _applyFilters(); },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplicantCard(_ApplicationRow row, int index) {
+    String assetForCategory(String cat) {
+      final c = cat.toLowerCase();
+      if (c.contains('hair')) return 'assets/images/hair.png';
+      if (c.contains('electric')) return 'assets/images/cable.png';
+      if (c.contains('plumb')) return 'assets/images/tap.png';
+      return 'assets/images/home.png';
+    }
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 350 + (index * 60).clamp(0, 360)),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(offset: Offset(0, 20 * (1 - value)), child: child),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(assetForCategory(row.job.category), width: 64, height: 64, fit: BoxFit.cover),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(row.application.applicantName,
+                              style: const TextStyle(color: _kBrown, fontSize: 16, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 3),
+                          Row(children: [
+                            const Icon(Icons.email_rounded, size: 13, color: _kBrownMid),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text(row.application.applicantEmail ?? '—',
+                                style: const TextStyle(color: _kBrownMid, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                          ]),
+                          const SizedBox(height: 2),
+                          Row(children: [
+                            const Icon(Icons.phone_rounded, size: 13, color: _kBrownMid),
+                            const SizedBox(width: 4),
+                            Text(row.application.applicantPhone ?? '—',
+                                style: const TextStyle(color: _kBrownMid, fontSize: 12)),
+                          ]),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _kOrange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(row.job.category,
+                          style: const TextStyle(color: _kOrange, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+                if (row.application.coverLetter != null && row.application.coverLetter!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: _kCreamDark, borderRadius: BorderRadius.circular(10)),
+                    child: Text(row.application.coverLetter!,
+                        style: const TextStyle(color: _kBrown, fontSize: 13, height: 1.5),
+                        maxLines: 3, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Accept',
+                        icon: Icons.check_rounded,
+                        gradient: const [Color(0xFF11998E), Color(0xFF38EF7D)],
+                        onTap: () => _acceptApplication(row),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Decline',
+                        icon: Icons.close_rounded,
+                        gradient: const [Color(0xFFEB3349), Color(0xFFF45C43)],
+                        onTap: () => _declineApplication(row),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final List<Color> gradient;
+  final VoidCallback onTap;
+
+  const _ActionButton({required this.label, required this.icon, required this.gradient, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: gradient, begin: Alignment.centerLeft, end: Alignment.centerRight),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: gradient.first.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 3))],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
+}
 
-  Widget _buildAppBar(BuildContext context) {
+// ─── Applications Header ──────────────────────────────────────────────────────
+class _ApplicationsHeader extends StatelessWidget {
+  final VoidCallback onBack;
+  final Animation<Offset> slideAnim;
+  final int pendingCount;
+
+  const _ApplicationsHeader({
+    required this.onBack,
+    required this.slideAnim,
+    required this.pendingCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 8),
-      // --- Changed AppBar Background Color ---
-      decoration: const BoxDecoration(color: appBgColor), // Match background
-      child: Row(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_kOrangeDark, _kOrange, _kOrangeLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(top: topPadding),
+      child: Stack(
         children: [
-          IconButton(
-            // --- Changed Back Icon Color ---
-            icon: Icon(
-              Icons.arrow_back,
-              color: appTextColorPrimary,
-            ), // Use primary text color
-            onPressed: () => _onBackPressed(context),
-          ),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'Applicants',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                // --- Changed App Title Color ---
-                color: appTextColorPrimary, // Use primary text color
-                fontSize: 18,
-                fontFamily: 'Lexend',
-                fontWeight: FontWeight.w700,
+          // Transparent image overlay
+          Positioned(
+            right: -8,
+            bottom: -6,
+            child: Opacity(
+              opacity: 0.15,
+              child: Image.asset(
+                'assets/images/nn.png',
+                height: 85,
+                fit: BoxFit.contain,
               ),
             ),
           ),
-          Container(width: 48), // Placeholder for symmetry
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: TextField(
-        decoration: InputDecoration(
-          hintText: 'Job type',
-          hintStyle: TextStyle(
-            color: appTextColorSecondary,
-            fontSize: 14,
-            fontFamily: 'Lexend',
-          ),
-          filled: true,
-          fillColor: appBorderColor,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        ),
-        style: TextStyle(
-          color: appTextColorPrimary,
-          fontSize: 14,
-          fontFamily: 'Lexend',
-        ),
-        onChanged: (value) {
-          setState(() {
-            jobTypeFilter = value;
-          });
-          _applyFilters();
-        },
-      ),
-    );
-  }
-
-  Widget _buildApplicantCard(Map<String, dynamic> applicant) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const ShapeDecoration(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-        ),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Calculate a responsive image width, e.g., 30% of the card's width, capped at a max
-          final double maxImageWidth =
-              100.0; // Absolute max width for the image
-          final double calculatedImageWidth =
-              constraints.maxWidth * 0.30; // 30% of available width
-          final double imageWidth = calculatedImageWidth > maxImageWidth
-              ? maxImageWidth
-              : calculatedImageWidth;
-
-          // Ensure a minimum image width for very small screens
-          final double finalImageWidth = imageWidth < 60.0 ? 60.0 : imageWidth;
-
-          // Calculate image height proportional to width or set a fixed responsive height
-          final double imageHeight =
-              finalImageWidth * 0.9; // e.g., keep a 10:9 aspect ratio
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start, // Align items to the top
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+            child: SlideTransition(
+              position: slideAnim,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // 1. Applicant Info (Expanded to take remaining space)
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize:
-                          MainAxisSize.min, // Shrink to fit content height
-                      children: [
-                        Text(
-                          applicant['name'],
-                          style: const TextStyle(
-                            // --- Changed Applicant Name Color ---
-                            color:
-                                appTextColorPrimary, // Use primary text color
-                            fontSize: 16,
-                            fontFamily: 'Lexend',
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          applicant['email'],
-                          style: const TextStyle(
-                            color: appTextColorSecondary,
-                            fontSize: 14,
-                            fontFamily: 'Lexend',
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          applicant['phone'],
-                          style: const TextStyle(
-                            color: appTextColorSecondary,
-                            fontSize: 14,
-                            fontFamily: 'Lexend',
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Job Type: ${applicant['jobType']}',
-                          style: const TextStyle(
-                            color: appTextColorPrimary,
-                            fontSize: 14,
-                            fontFamily: 'Lexend',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16), // Space between text and image
-                  // 2. Applicant Image (Constrained in size)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: finalImageWidth,
-                        maxHeight: imageHeight,
-                      ),
-                      child: Image.asset(
-                        applicant['image'],
-                        width: finalImageWidth, // Use the calculated width
-                        height: imageHeight, // Use the calculated height
-                        fit: BoxFit.cover, // Cover the allocated space
-                        errorBuilder: (context, error, stackTrace) {
-                          // Handle image loading errors gracefully
-                          return Container(
-                            width: finalImageWidth,
-                            height: imageHeight,
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.error, color: Colors.red),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                applicant['message'],
-                style: const TextStyle(
-                  color: appTextColorPrimary,
-                  fontSize: 14,
-                  fontFamily: 'Lexend',
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Action Buttons Row
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => _acceptApplication(applicant),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onBack,
+                      borderRadius: BorderRadius.circular(22),
+                      splashColor: Colors.white.withValues(alpha: 0.25),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                        width: 42, height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1),
                         ),
-                        decoration: const ShapeDecoration(
-                          color: appAccentColor, // Orange color
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
-                          ),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'Accept',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 14,
-                              fontFamily: 'Lexend',
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
+                        child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () => _declineApplication(applicant),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Manage', style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 12, fontWeight: FontWeight.w400)),
+                        const SizedBox(height: 2),
+                        const Text('Applications',
+                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.1)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 42, height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1),
                         ),
-                        decoration: const ShapeDecoration(
-                          color: appAccentColor, // Orange color
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
-                          ),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'Decline',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 14,
-                              fontFamily: 'Lexend',
-                              fontWeight: FontWeight.w500,
+                        child: const Icon(Icons.description_rounded, color: Colors.white, size: 20),
+                      ),
+                      if (pendingCount > 0)
+                        Positioned(
+                          top: -2, right: -2,
+                          child: Container(
+                            width: 18, height: 18,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF3B30),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 1.5),
+                            ),
+                            child: Center(
+                              child: Text(
+                                pendingCount > 9 ? '9+' : '$pendingCount',
+                                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        // --- Changed Bottom Nav Bar Background Color ---
-        color: Colors.white, // Use pure white background
-        // --- Changed Top Border Color ---
-        border: Border(
-          top: BorderSide(width: 1, color: appBorderColor),
-        ), // Use border color
-      ),
-      child: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        // --- Changed Selected Item Color ---
-        selectedItemColor: Colors.black, // Black for selected items
-        // --- Changed Unselected Item Color ---
-        unselectedItemColor:
-            appTextColorSecondary, // Use secondary text color for unselected
-        selectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontFamily: 'Lexend',
-          fontWeight: FontWeight.w500,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontFamily: 'Lexend',
-          fontWeight: FontWeight.w500,
-        ),
-        // --- Changed Icons to Match Colors ---
-        items: [
-          BottomNavigationBarItem(
-            // --- Changed Icon Color ---
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _selectedIndex == 0
-                    ? appAccentColor
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.home,
-                color: _selectedIndex == 0
-                    ? Colors.black
-                    : appTextColorSecondary,
-                size: 18,
-              ),
             ),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _selectedIndex == 1
-                    ? appAccentColor
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.work,
-                color: _selectedIndex == 1
-                    ? Colors.black
-                    : appTextColorSecondary,
-                size: 18,
-              ),
-            ),
-            label: 'Jobs',
-          ),
-          BottomNavigationBarItem(
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _selectedIndex == 2
-                    ? appAccentColor
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.add,
-                color: _selectedIndex == 2
-                    ? Colors.black
-                    : appTextColorSecondary,
-                size: 18,
-              ),
-            ),
-            label: 'Post',
-          ),
-          BottomNavigationBarItem(
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _selectedIndex == 3
-                    ? appAccentColor
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.description,
-                color: _selectedIndex == 3
-                    ? Colors.black
-                    : appTextColorSecondary,
-                size: 18,
-              ),
-            ),
-            label: 'Applications',
-          ),
-          BottomNavigationBarItem(
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _selectedIndex == 4
-                    ? appAccentColor
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.settings,
-                color: _selectedIndex == 4
-                    ? Colors.black
-                    : appTextColorSecondary,
-                size: 18,
-              ),
-            ),
-            label: 'Settings',
           ),
         ],
-        onTap: _onItemTapped,
       ),
     );
   }

@@ -1,16 +1,12 @@
-//import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'theme_provider.dart';
 
 // PAGES
 import 'features/onboarding/homepage.dart';
-import 'features/onboarding/onboarding1_page.dart';
-import 'features/onboarding/onboarding2_page.dart';
-import 'features/onboarding/onboarding3_page.dart';
+import 'features/onboarding/onboarding_page.dart';
 import 'features/auth/login_page.dart';
 import 'features/auth/signup_page.dart';
 import 'features/auth/forgot_password_page.dart';
-import 'features/subscription/subscription_page.dart';
 import 'features/dashboard/home_page.dart';
 import 'features/dashboard/view_jobs_page.dart';
 import 'features/dashboard/apply_jobs_page.dart';
@@ -21,6 +17,9 @@ import 'features/dashboard/my_cv_page.dart';
 import 'features/dashboard/fixit_assistance_page.dart';
 import 'features/dashboard/settings_page.dart';
 import 'features/dashboard/notification_page.dart';
+import 'features/subscription/subscription_page.dart';
+import 'features/dashboard/about_page.dart';
+import 'features/dashboard/job_applicants_page.dart';
 
 // REPOSITORIES
 import 'data/repositories/auth_repository.dart';
@@ -32,149 +31,63 @@ class AppRouter {
     return GoRouter(
       initialLocation: '/',
       refreshListenable: auth,
-      redirect: (context, state) => _handleRedirect(auth, state),
-      routes: [
-        // -------------------------
-        // Onboarding & Auth Routes
-        // -------------------------
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const OnboardingHomePage(),
-        ),
-        GoRoute(
-          path: '/onboarding/home',
-          builder: (context, state) => const OnboardingHomePage(),
-        ),
-        GoRoute(
-          path: '/onboarding/1',
-          builder: (context, state) => const Onboarding1Page(),
-        ),
-        GoRoute(
-          path: '/onboarding/2',
-          builder: (context, state) => const Onboarding2Page(),
-        ),
-        GoRoute(
-          path: '/onboarding/3',
-          builder: (context, state) => const Onboarding3Page(),
-        ),
-        // GoRoute(
-        //   path: '/subscription',
-        //   builder: (context, state) => const SubscriptionPage(),
-        // ),
-        GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
-        GoRoute(
-          path: '/signup',
-          builder: (context, state) => const SignupPage(),
-        ),
-        GoRoute(
-          path: '/forgot-password',
-          builder: (context, state) => const ForgotPasswordPage(),
-        ),
+      redirect: (context, state) {
+        final location = state.uri.toString();
+        if (!auth.isReady) return null;
 
-        // -------------------------
-        // DASHBOARD ROUTES - Matching the first example structure
-        // -------------------------
+        final loggedIn = auth.isLoggedIn();
+        final isPublicRoute =
+            location == '/' ||
+            location.startsWith('/login') ||
+            location.startsWith('/signup') ||
+            location.startsWith('/forgot-password') ||
+            location.startsWith('/onboarding');
+
+        if (loggedIn && isPublicRoute && !location.startsWith('/onboarding')) {
+          return '/dashboard/home';
+        }
+        if (!loggedIn && !isPublicRoute) {
+          return '/login';
+        }
+        return null;
+      },
+      routes: [
+        // Onboarding & Auth
+        GoRoute(path: '/',                  builder: (_, __) => const OnboardingHomePage()),
+        GoRoute(path: '/onboarding/home',   builder: (_, __) => const OnboardingHomePage()),
+        GoRoute(path: '/onboarding/1',      builder: (_, __) => const OnboardingPage()),
+        GoRoute(path: '/onboarding/2',      builder: (_, __) => const OnboardingPage()),
+        GoRoute(path: '/onboarding/3',      builder: (_, __) => const OnboardingPage()),
+        GoRoute(path: '/login',             builder: (_, __) => const LoginPage()),
+        GoRoute(path: '/signup',            builder: (_, __) => const SignupPage()),
+        GoRoute(path: '/forgot-password',   builder: (_, __) => const ForgotPasswordPage()),
+
+        // Dashboard
+        GoRoute(path: '/dashboard/home',          builder: (_, __) => const HomePage()),
+        GoRoute(path: '/dashboard/jobs',          builder: (_, __) => const ViewJobsPage()),
+        GoRoute(path: '/dashboard/post-job',      builder: (_, __) => const PostJobPage()),
+        GoRoute(path: '/dashboard/applications',  builder: (_, __) => const ApplicationsPage()),
+        GoRoute(path: '/dashboard/settings',      builder: (context, _) {
+          final themeProvider = ThemeProvider.of(context);
+          return SettingsPage(onToggleTheme: themeProvider.toggleTheme);
+        }),
+        GoRoute(path: '/dashboard/notifications', builder: (_, __) => const NotificationPage()),
+        GoRoute(path: '/dashboard/my-jobs',       builder: (_, __) => const MyJobsPage()),
+        GoRoute(path: '/dashboard/apply-jobs',    builder: (_, __) => const ApplyJobsPage()),
+        GoRoute(path: '/dashboard/my-cv',         builder: (_, __) => const MyCvPage()),
+        GoRoute(path: '/dashboard/fixit-assistance', builder: (_, __) => const FixitAssistancePage()),
+        GoRoute(path: '/dashboard/subscription',  builder: (_, __) => const SubscriptionPage()),
+        GoRoute(path: '/dashboard/view-jobs',     builder: (_, __) => const ViewJobsPage()),
+        GoRoute(path: '/subscription',            builder: (_, __) => const SubscriptionPage()),
+        GoRoute(path: '/dashboard/about',         builder: (_, __) => const AboutPage()),
         GoRoute(
-          path: '/dashboard/home',
-          builder: (context, state) => HomePage(),
-        ),
-        GoRoute(
-          path: '/dashboard/notifications',
-          builder: (context, state) => NotificationPage(),
-        ),
-        GoRoute(
-          path: '/dashboard/jobs',
-          builder: (context, state) => ViewJobsPage(),
-        ),
-        GoRoute(
-          path: '/dashboard/post-job',
-          builder: (context, state) => PostJobPage(),
-        ),
-        GoRoute(
-          path: '/dashboard/settings',
-          builder: (context, state) {
-            final themeProvider = ThemeProvider.of(context);
-            return SettingsPage(onToggleTheme: themeProvider.toggleTheme);
-          },
-        ),
-        GoRoute(
-          path: '/dashboard/my-jobs',
-          builder: (context, state) => MyJobsPage(),
-        ),
-        GoRoute(
-          path: '/dashboard/apply-jobs',
-          builder: (context, state) => ApplyJobsPage(),
-        ),
-        GoRoute(
-          path: '/dashboard/applications',
-          builder: (context, state) => ApplicationsPage(),
-        ),
-        GoRoute(
-          path: '/dashboard/my-cv',
-          builder: (context, state) => MyCvPage(),
-        ),
-        GoRoute(
-          path: '/dashboard/fixit-assistance',
-          builder: (context, state) => FixitAssistancePage(),
-        ),
-        GoRoute(
-          path: '/dashboard/subscription',
-          builder: (context, state) => SubscriptionPage(),
-        ),
-        GoRoute(
-          path: '/dashboard/view-jobs',
-          builder: (context, state) => ViewJobsPage(),
+          path: '/dashboard/job-applicants/:jobId',
+          builder: (_, state) => JobApplicantsPage(
+            jobId:    state.pathParameters['jobId'] ?? '',
+            jobTitle: state.extra as String? ?? 'Job',
+          ),
         ),
       ],
     );
-  }
-
-  // -------------------------
-  // Redirect Handler
-  // -------------------------
-  static String? _handleRedirect(AuthRepository auth, GoRouterState state) {
-    final location = state.uri.toString();
-
-    if (!auth.isReady) return null;
-
-    final loggedIn = auth.isLoggedIn();
-    final isPublicRoute =
-        [
-          '/',
-          '/login',
-          '/signup',
-          '/forgot-password',
-          '/subscription',
-        ].any((path) => location.startsWith(path)) ||
-        location.startsWith('/onboarding');
-
-    if (loggedIn) {
-      final needsSub =
-          auth.currentUser != null && (auth.currentUser!.email ?? '').isEmpty;
-      final isFirstRun = false;
-      print(
-        'Logged In: $loggedIn, Needs Subscription: $needsSub, Is First Run: $isFirstRun',
-      );
-
-      // Allow navigation to settings page even if subscription is needed
-      if (location == '/dashboard/settings') {
-        print('Allowing access to settings page.');
-        return null; // Explicitly allow settings page
-
-        if (isFirstRun && !location.startsWith('/onboarding')) {
-          return '/onboarding/home';
-        }
-        if (needsSub && !location.startsWith('/subscription')) {
-          return '/subscription';
-        }
-        if (isPublicRoute && !location.startsWith('/onboarding')) {
-          return '/dashboard/home';
-        }
-      }
-    } else {
-      return isPublicRoute ? null : '/login';
-    }
-
-    return null;
   }
 }
