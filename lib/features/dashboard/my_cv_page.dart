@@ -4,8 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-
 import '../widgets/app_nav_bar.dart';
 
 const _kOrange      = Color(0xFFF77705);
@@ -99,18 +97,28 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
 
   Future<void> _uploadPhoto() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked == null || !mounted) return;
+    XFile? picked;
+    try {
+      picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    } catch (_) {
+      return;
+    }
+    if (picked == null) return;
+
+    // Defer setState past the current frame to avoid mouse_tracker assertion
+    await Future.delayed(Duration.zero);
+    if (!mounted) return;
 
     setState(() => _uploadingPhoto = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      final bytes = await picked.readAsBytes();
       final ref = FirebaseStorage.instance
           .ref()
           .child('profile_photos/${user.uid}.jpg');
-      await ref.putFile(File(picked.path));
+      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
       final url = await ref.getDownloadURL();
 
       await FirebaseFirestore.instance
@@ -119,7 +127,8 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
           .update({'photoUrl': url});
 
       if (!mounted) return;
-      setState(() => _photoUrl = url);
+      // Append cache-buster so NetworkImage reloads the new photo
+      setState(() => _photoUrl = '$url&v=${DateTime.now().millisecondsSinceEpoch}');
       _showSnack('Profile photo updated', isError: false);
     } catch (e) {
       if (!mounted) return;
@@ -145,6 +154,7 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
         onCancel: () => Navigator.pop(ctx, false),
       ),
     );
+    await Future.delayed(Duration.zero);
     if (confirmed != true || !mounted) return;
 
     try {
@@ -244,13 +254,22 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
                       end: Alignment.bottomRight,
                     ),
                     boxShadow: [BoxShadow(color: _kOrange.withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 6))],
-                    image: _photoUrl != null
-                        ? DecorationImage(image: NetworkImage(_photoUrl!), fit: BoxFit.cover)
-                        : null,
                   ),
-                  child: _photoUrl == null
-                      ? Center(child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)))
-                      : null,
+                  child: ClipOval(
+                    child: _photoUrl != null
+                        ? Image.network(
+                            _photoUrl!,
+                            key: ValueKey(_photoUrl),
+                            width: 90, height: 90,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+                            ),
+                          )
+                        : Center(
+                            child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+                          ),
+                  ),
                 ),
                 Positioned(
                   bottom: 0, right: 0,
@@ -495,10 +514,9 @@ class _ProfileHeader extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('My Account', style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 12, fontWeight: FontWeight.w400)),
-                        const SizedBox(height: 2),
+                        Text('My Account', style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 11, fontWeight: FontWeight.w400, height: 1.1)),
                         const Text('Personal Information',
-                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.1)),
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.2)),
                       ],
                     ),
                   ),

@@ -322,18 +322,18 @@ class _NotifHeader extends StatelessWidget {
                           'Activity',
                           style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.80),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              height: 1.1),
                         ),
-                        const SizedBox(height: 2),
                         const Text(
                           'Notifications',
                           style: TextStyle(
                               color: Colors.white,
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w700,
                               letterSpacing: -0.3,
-                              height: 1.1),
+                              height: 1.2),
                         ),
                       ],
                     ),

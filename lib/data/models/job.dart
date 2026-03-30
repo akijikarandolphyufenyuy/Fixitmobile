@@ -7,6 +7,7 @@ class Job {
   final String? postedBy;
   final DateTime? expiresAt;
   final String? payRange;
+  final String? contact;
   final bool isClosed;
 
   Job({
@@ -18,6 +19,7 @@ class Job {
     required this.postedBy,
     this.expiresAt,
     this.payRange,
+    this.contact,
     this.isClosed = false,
   });
 
@@ -31,6 +33,7 @@ class Job {
       'posted_by': postedBy,
       if (expiresAt != null) 'expires_at': expiresAt!.toIso8601String(),
       if (payRange != null) 'pay_range': payRange,
+      if (contact != null) 'contact': contact,
       'is_closed': isClosed,
     };
   }
@@ -50,6 +53,7 @@ class Job {
       postedBy: postedByValue?.toString(),
       expiresAt: expiresAt,
       payRange: map['pay_range']?.toString(),
+      contact: map['contact']?.toString(),
       isClosed: map['is_closed'] == true || map['is_closed'] == 1,
     );
   }

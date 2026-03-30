@@ -180,13 +180,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     _SettingsDivider(),
                     _SettingsTile(
-                      icon: Icons.workspace_premium_rounded,
-                      gradient: [const Color(0xFFFF6B35), const Color(0xFFFF8E53)],
-                      title: 'Subscription',
-                      onTap: () => context.go('/dashboard/subscription'),
-                    ),
-                    _SettingsDivider(),
-                    _SettingsTile(
                       icon: Icons.lock_rounded,
                       gradient: [const Color(0xFF11998E), const Color(0xFF38EF7D)],
                       title: 'Security',
@@ -221,6 +214,19 @@ class _SettingsPageState extends State<SettingsPage> {
                       title: 'Location',
                       trailing: Text(_location, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13, fontWeight: FontWeight.w500)),
                       onTap: _editLocation,
+                    ),
+                  ]),
+                  _SectionLabel(label: 'Payments'),
+                  _SettingsCard(children: [
+                    _SettingsTile(
+                      icon: Icons.receipt_long_rounded,
+                      gradient: [const Color(0xFF11998E), const Color(0xFF38EF7D)],
+                      title: 'Transaction History',
+                      onTap: () async {
+                        await Future.delayed(Duration.zero);
+                        if (!mounted) return;
+                        context.go('/dashboard/transactions');
+                      },
                     ),
                   ]),
                   _SectionLabel(label: 'Support'),
@@ -576,9 +582,8 @@ class _SettingsHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Account', style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 12, fontWeight: FontWeight.w400)),
-                  const SizedBox(height: 2),
-                  const Text('Settings', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.1)),
+                  Text('Account', style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 11, fontWeight: FontWeight.w400, height: 1.1)),
+                  const Text('Settings', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.2)),
                 ],
               ),
             ),

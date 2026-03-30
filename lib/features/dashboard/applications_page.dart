@@ -184,8 +184,9 @@ class _ApplicationsPageState extends State<ApplicationsPage> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: _kCream,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -235,21 +236,23 @@ class _ApplicationsPageState extends State<ApplicationsPage> with SingleTickerPr
   }
 
   Widget _buildSearchBar() {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))],
         ),
         child: TextField(
-          decoration: const InputDecoration(
+          style: TextStyle(color: theme.colorScheme.onSurface),
+          decoration: InputDecoration(
             hintText: 'Filter by job type or category...',
-            hintStyle: TextStyle(color: _kBrownMid, fontSize: 14),
-            prefixIcon: Icon(Icons.search_rounded, color: _kOrange, size: 22),
+            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
+            prefixIcon: const Icon(Icons.search_rounded, color: _kOrange, size: 22),
             border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
           onChanged: (v) { jobTypeFilter = v; _applyFilters(); },
         ),
@@ -258,6 +261,7 @@ class _ApplicationsPageState extends State<ApplicationsPage> with SingleTickerPr
   }
 
   Widget _buildApplicantCard(_ApplicationRow row, int index) {
+    final theme = Theme.of(context);
     String assetForCategory(String cat) {
       final c = cat.toLowerCase();
       if (c.contains('hair')) return 'assets/images/hair.png';
@@ -278,7 +282,7 @@ class _ApplicationsPageState extends State<ApplicationsPage> with SingleTickerPr
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))],
           ),
@@ -300,20 +304,20 @@ class _ApplicationsPageState extends State<ApplicationsPage> with SingleTickerPr
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(row.application.applicantName,
-                              style: const TextStyle(color: _kBrown, fontSize: 16, fontWeight: FontWeight.w700)),
+                              style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.w700)),
                           const SizedBox(height: 3),
                           Row(children: [
-                            const Icon(Icons.email_rounded, size: 13, color: _kBrownMid),
+                            Icon(Icons.email_rounded, size: 13, color: theme.colorScheme.onSurfaceVariant),
                             const SizedBox(width: 4),
                             Expanded(child: Text(row.application.applicantEmail ?? '—',
-                                style: const TextStyle(color: _kBrownMid, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12), overflow: TextOverflow.ellipsis)),
                           ]),
                           const SizedBox(height: 2),
                           Row(children: [
-                            const Icon(Icons.phone_rounded, size: 13, color: _kBrownMid),
+                            Icon(Icons.phone_rounded, size: 13, color: theme.colorScheme.onSurfaceVariant),
                             const SizedBox(width: 4),
                             Text(row.application.applicantPhone ?? '—',
-                                style: const TextStyle(color: _kBrownMid, fontSize: 12)),
+                                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12)),
                           ]),
                         ],
                       ),
@@ -334,9 +338,9 @@ class _ApplicationsPageState extends State<ApplicationsPage> with SingleTickerPr
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: _kCreamDark, borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(10)),
                     child: Text(row.application.coverLetter!,
-                        style: const TextStyle(color: _kBrown, fontSize: 13, height: 1.5),
+                        style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 13, height: 1.5),
                         maxLines: 3, overflow: TextOverflow.ellipsis),
                   ),
                 ],
@@ -473,10 +477,9 @@ class _ApplicationsHeader extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Manage', style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 12, fontWeight: FontWeight.w400)),
-                        const SizedBox(height: 2),
+                        Text('Manage', style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 11, fontWeight: FontWeight.w400, height: 1.1)),
                         const Text('Applications',
-                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.1)),
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.2)),
                       ],
                     ),
                   ),

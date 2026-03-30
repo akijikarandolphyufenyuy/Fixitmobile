@@ -61,22 +61,17 @@ class _OnboardingHomePageState extends State<OnboardingHomePage>
 
     return Scaffold(
       backgroundColor: _kCream,
-      body: SafeArea(
-        bottom: false,
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         child: Column(
           children: [
-            // ── Hero Image ─────────────────────────────────────────────────
-            Expanded(
-              flex: 55,
+            // ── Hero Image ───────────────────────────────────────────────────
+            SizedBox(
+              height: size.height * 0.48,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.asset(
-                    'assets/images/home.png',
-                    fit: BoxFit.cover,
-                  ),
-
-                  // Gradient overlay — dark top for logo, fade to cream bottom
+                  Image.asset('assets/images/home.png', fit: BoxFit.cover),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -92,12 +87,8 @@ class _OnboardingHomePageState extends State<OnboardingHomePage>
                       ),
                     ),
                   ),
-
-                  // ── Professional Wordmark Logo (top-center) ──────────────
                   Positioned(
-                    top: 24,
-                    left: 0,
-                    right: 0,
+                    top: 24, left: 0, right: 0,
                     child: ScaleTransition(
                       scale: _logoScale,
                       child: FadeTransition(
@@ -109,97 +100,89 @@ class _OnboardingHomePageState extends State<OnboardingHomePage>
                 ],
               ),
             ),
-
-            // ── Bottom Content ─────────────────────────────────────────────
-            Expanded(
-              flex: 45,
-              child: FadeTransition(
-                opacity: _contentFade,
-                child: SlideTransition(
-                  position: _contentSlide,
-                  child: SingleChildScrollView(
-                    physics: const NeverScrollableScrollPhysics(),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                          24, 20, 24, bottomPad + 24),
-                      child: Column(
+            // ── Bottom Content ───────────────────────────────────────────────
+            FadeTransition(
+              opacity: _contentFade,
+              child: SlideTransition(
+                position: _contentSlide,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(24, 20, 24, bottomPad + 56),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _kBrownLight,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          '🇨🇲  Made for Cameroon',
+                          style: TextStyle(color: _kBrownMid, fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Your Skills,\nYour Earnings.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _kBrown,
+                          fontSize: size.width < 360 ? 26 : 30,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Find jobs. Offer services.\nGet paid — all in one place.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: _kBrownMid, fontSize: 14, height: 1.55),
+                      ),
+                      const SizedBox(height: 20),
+                      _GetStartedButton(onTap: () => context.go('/onboarding/1')),
+                      const SizedBox(height: 24),
+                      Row(
                         children: [
-                        // ── Tag ──────────────────────────────────────────
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: _kBrownLight,
-                            borderRadius: BorderRadius.circular(20),
+                          Expanded(child: Divider(color: _kBrownLight, thickness: 1)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text('or', style: TextStyle(color: _kBrownMid, fontSize: 13)),
                           ),
-                          child: const Text(
-                            '🇨🇲  Made for Cameroon',
-                            style: TextStyle(
-                              color: _kBrownMid,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // ── Headline (centered) ──────────────────────────
-                        Text(
-                          'Your Skills,\nYour Earnings.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _kBrown,
-                            fontSize: size.width < 360 ? 26 : 30,
-                            fontWeight: FontWeight.w800,
-                            height: 1.2,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // ── Subtext (centered) ───────────────────────────
-                        const Text(
-                          'Find jobs. Offer services.\nGet paid — all in one place.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _kBrownMid,
-                            fontSize: 14,
-                            height: 1.55,
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // ── Get Started Button (responsive) ──────────────
-                        _GetStartedButton(
-                          onTap: () => context.go('/onboarding/1'),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // ── Sign In link ─────────────────────────────────
-                        GestureDetector(
-                          onTap: () => context.go('/login'),
-                          child: RichText(
-                            textAlign: TextAlign.center,
-                            text: const TextSpan(
-                              text: 'Already have an account? ',
-                              style:
-                                  TextStyle(color: _kBrownMid, fontSize: 14),
-                              children: [
-                                TextSpan(
-                                  text: 'Sign In',
-                                  style: TextStyle(
-                                    color: _kOrange,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                          Expanded(child: Divider(color: _kBrownLight, thickness: 1)),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: () => context.go('/login'),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: _kBrownLight, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.login_rounded, color: _kOrange, size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'Already have an account? ',
+                                style: TextStyle(color: _kBrownMid, fontSize: 14, fontWeight: FontWeight.w500),
+                              ),
+                              Text(
+                                'Sign In',
+                                style: TextStyle(color: _kOrange, fontSize: 14, fontWeight: FontWeight.w800),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

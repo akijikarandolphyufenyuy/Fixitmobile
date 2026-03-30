@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'theme_provider.dart';
 
@@ -20,9 +21,37 @@ import 'features/dashboard/notification_page.dart';
 import 'features/subscription/subscription_page.dart';
 import 'features/dashboard/about_page.dart';
 import 'features/dashboard/job_applicants_page.dart';
+import 'features/transactions/transactions_page.dart';
+import 'features/payment/payment_screen.dart';
 
 // REPOSITORIES
 import 'data/repositories/auth_repository.dart';
+
+// Shared transition builder — fade + subtle upward slide
+Page<T> _page<T>(LocalKey key, Widget child, {bool isModal = false}) {
+  return CustomTransitionPage<T>(
+    key: key,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 320),
+    reverseTransitionDuration: const Duration(milliseconds: 260),
+    transitionsBuilder: (_, animation, secondaryAnimation, child) {
+      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+      final slide = Tween<Offset>(
+        begin: isModal ? const Offset(0, 0.06) : const Offset(0.04, 0),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+      final fadeOut = Tween<double>(begin: 1.0, end: 0.92)
+          .animate(CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeIn));
+      return FadeTransition(
+        opacity: fadeOut,
+        child: FadeTransition(
+          opacity: fade,
+          child: SlideTransition(position: slide, child: child),
+        ),
+      );
+    },
+  );
+}
 
 class AppRouter {
   static GoRouter build(AuthRepository authRepository) {
@@ -53,38 +82,56 @@ class AppRouter {
       },
       routes: [
         // Onboarding & Auth
-        GoRoute(path: '/',                  builder: (_, __) => const OnboardingHomePage()),
-        GoRoute(path: '/onboarding/home',   builder: (_, __) => const OnboardingHomePage()),
-        GoRoute(path: '/onboarding/1',      builder: (_, __) => const OnboardingPage()),
-        GoRoute(path: '/onboarding/2',      builder: (_, __) => const OnboardingPage()),
-        GoRoute(path: '/onboarding/3',      builder: (_, __) => const OnboardingPage()),
-        GoRoute(path: '/login',             builder: (_, __) => const LoginPage()),
-        GoRoute(path: '/signup',            builder: (_, __) => const SignupPage()),
-        GoRoute(path: '/forgot-password',   builder: (_, __) => const ForgotPasswordPage()),
+        GoRoute(path: '/',                  pageBuilder: (_, s) => _page(s.pageKey, const OnboardingHomePage())),
+        GoRoute(path: '/onboarding/home',   pageBuilder: (_, s) => _page(s.pageKey, const OnboardingHomePage())),
+        GoRoute(path: '/onboarding/1',      pageBuilder: (_, s) => _page(s.pageKey, const OnboardingPage())),
+        GoRoute(path: '/onboarding/2',      pageBuilder: (_, s) => _page(s.pageKey, const OnboardingPage())),
+        GoRoute(path: '/onboarding/3',      pageBuilder: (_, s) => _page(s.pageKey, const OnboardingPage())),
+        GoRoute(path: '/login',             pageBuilder: (_, s) => _page(s.pageKey, const LoginPage())),
+        GoRoute(path: '/signup',            pageBuilder: (_, s) => _page(s.pageKey, const SignupPage())),
+        GoRoute(path: '/forgot-password',   pageBuilder: (_, s) => _page(s.pageKey, const ForgotPasswordPage())),
 
         // Dashboard
-        GoRoute(path: '/dashboard/home',          builder: (_, __) => const HomePage()),
-        GoRoute(path: '/dashboard/jobs',          builder: (_, __) => const ViewJobsPage()),
-        GoRoute(path: '/dashboard/post-job',      builder: (_, __) => const PostJobPage()),
-        GoRoute(path: '/dashboard/applications',  builder: (_, __) => const ApplicationsPage()),
-        GoRoute(path: '/dashboard/settings',      builder: (context, _) {
+        GoRoute(path: '/dashboard/home',         pageBuilder: (_, s) => _page(s.pageKey, const HomePage())),
+        GoRoute(path: '/dashboard/jobs',         pageBuilder: (_, s) => _page(s.pageKey, const ViewJobsPage())),
+        GoRoute(path: '/dashboard/post-job',     pageBuilder: (_, s) => _page(s.pageKey, const PostJobPage())),
+        GoRoute(path: '/dashboard/applications', pageBuilder: (_, s) => _page(s.pageKey, const ApplicationsPage())),
+        GoRoute(path: '/dashboard/settings',     pageBuilder: (context, s) {
           final themeProvider = ThemeProvider.of(context);
-          return SettingsPage(onToggleTheme: themeProvider.toggleTheme);
+          return _page(s.pageKey, SettingsPage(onToggleTheme: themeProvider.toggleTheme));
         }),
-        GoRoute(path: '/dashboard/notifications', builder: (_, __) => const NotificationPage()),
-        GoRoute(path: '/dashboard/my-jobs',       builder: (_, __) => const MyJobsPage()),
-        GoRoute(path: '/dashboard/apply-jobs',    builder: (_, __) => const ApplyJobsPage()),
-        GoRoute(path: '/dashboard/my-cv',         builder: (_, __) => const MyCvPage()),
-        GoRoute(path: '/dashboard/fixit-assistance', builder: (_, __) => const FixitAssistancePage()),
-        GoRoute(path: '/dashboard/subscription',  builder: (_, __) => const SubscriptionPage()),
-        GoRoute(path: '/dashboard/view-jobs',     builder: (_, __) => const ViewJobsPage()),
-        GoRoute(path: '/subscription',            builder: (_, __) => const SubscriptionPage()),
-        GoRoute(path: '/dashboard/about',         builder: (_, __) => const AboutPage()),
+        GoRoute(path: '/dashboard/notifications', pageBuilder: (_, s) => _page(s.pageKey, const NotificationPage())),
+        GoRoute(path: '/dashboard/my-jobs',       pageBuilder: (_, s) => _page(s.pageKey, const MyJobsPage())),
+        GoRoute(path: '/dashboard/apply-jobs',    pageBuilder: (_, s) => _page(s.pageKey, const ApplyJobsPage())),
+        GoRoute(path: '/dashboard/my-cv',         pageBuilder: (_, s) => _page(s.pageKey, const MyCvPage())),
+        GoRoute(path: '/dashboard/fixit-assistance', pageBuilder: (_, s) => _page(s.pageKey, const FixitAssistancePage())),
+        GoRoute(path: '/dashboard/subscription',  pageBuilder: (_, s) => _page(s.pageKey, const SubscriptionPage())),
+        GoRoute(path: '/dashboard/view-jobs',     pageBuilder: (_, s) => _page(s.pageKey, const ViewJobsPage())),
+        GoRoute(path: '/subscription',            pageBuilder: (_, s) => _page(s.pageKey, const SubscriptionPage())),
+        GoRoute(path: '/dashboard/about',         pageBuilder: (_, s) => _page(s.pageKey, const AboutPage())),
+        GoRoute(path: '/dashboard/transactions',  pageBuilder: (_, s) => _page(s.pageKey, const TransactionsPage())),
+        GoRoute(
+          path: '/payment',
+          pageBuilder: (_, s) {
+            final extra = s.extra as Map<String, dynamic>;
+            return _page(s.pageKey,
+              PaymentScreen(
+                purpose:   extra['purpose']   as String,
+                amount:    extra['amount']    as int,
+                jobTitle:  extra['jobTitle']  as String?,
+                onSuccess: extra['onSuccess'] as void Function(),
+              ),
+              isModal: true,
+            );
+          },
+        ),
         GoRoute(
           path: '/dashboard/job-applicants/:jobId',
-          builder: (_, state) => JobApplicantsPage(
-            jobId:    state.pathParameters['jobId'] ?? '',
-            jobTitle: state.extra as String? ?? 'Job',
+          pageBuilder: (_, s) => _page(s.pageKey,
+            JobApplicantsPage(
+              jobId:    s.pathParameters['jobId'] ?? '',
+              jobTitle: s.extra as String? ?? 'Job',
+            ),
           ),
         ),
       ],

@@ -132,8 +132,9 @@ class _ApplyJobsPageState extends State<ApplyJobsPage>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: _kCream,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           // ── Header ──────────────────────────────────────────────────────
@@ -186,20 +187,20 @@ class _ApplyJobsPageState extends State<ApplyJobsPage>
 
                   _sectionLabel('Personal Information'),
                   const SizedBox(height: 12),
-                  _buildCard([
+                  _buildCard(context, [
                     _InputRow(
                       icon: Icons.person_rounded,
                       hint: 'Full Name',
                       controller: _fullNameCtrl,
                     ),
-                    _divider(),
+                    _divider(context),
                     _InputRow(
                       icon: Icons.email_rounded,
                       hint: 'Email Address',
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                     ),
-                    _divider(),
+                    _divider(context),
                     _InputRow(
                       icon: Icons.phone_rounded,
                       hint: 'Phone Number',
@@ -211,16 +212,16 @@ class _ApplyJobsPageState extends State<ApplyJobsPage>
                   const SizedBox(height: 24),
                   _sectionLabel('Cover Letter'),
                   const SizedBox(height: 12),
-                  _buildCard([
+                  _buildCard(context, [
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: TextField(
                         controller: _coverLetterCtrl,
                         maxLines: 5,
-                        style: const TextStyle(color: _kBrown, fontSize: 14, height: 1.5),
-                        decoration: const InputDecoration(
+                        style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14, height: 1.5),
+                        decoration: InputDecoration(
                           hintText: 'Tell the employer why you\'re the right fit for this job...',
-                          hintStyle: TextStyle(color: _kBrownMid, fontSize: 14),
+                          hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
                           border: InputBorder.none,
                           isDense: true,
                         ),
@@ -240,27 +241,35 @@ class _ApplyJobsPageState extends State<ApplyJobsPage>
     );
   }
 
-  Widget _sectionLabel(String label) => Text(
-        label.toUpperCase(),
-        style: const TextStyle(
-            color: _kBrownMid, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2),
-      );
+  Widget _sectionLabel(String label) {
+    final cs = Theme.of(context).colorScheme;
+    return Text(
+      label.toUpperCase(),
+      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2),
+    );
+  }
 
-  Widget _buildCard(List<Widget> children) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 4))
-          ],
-        ),
-        child: Column(children: children),
-      );
+  Widget _buildCard(BuildContext context, List<Widget> children) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 4))
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
 
-  Widget _divider() => Padding(
-        padding: const EdgeInsets.only(left: 56),
-        child: Divider(height: 1, color: _kBrownLight.withValues(alpha: 0.6)),
-      );
+  Widget _divider(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(left: 56),
+      child: Divider(height: 1, color: cs.outlineVariant),
+    );
+  }
 
   Widget _buildSubmitButton() {
     return SizedBox(
@@ -313,6 +322,7 @@ class _InputRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
@@ -330,10 +340,10 @@ class _InputRow extends StatelessWidget {
             child: TextField(
               controller: controller,
               keyboardType: keyboardType,
-              style: const TextStyle(color: _kBrown, fontSize: 14),
+              style: TextStyle(color: cs.onSurface, fontSize: 14),
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: const TextStyle(color: _kBrownMid, fontSize: 14),
+                hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 isDense: true,
