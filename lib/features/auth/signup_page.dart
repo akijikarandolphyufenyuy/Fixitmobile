@@ -38,6 +38,7 @@ const _professions = [
   'Mason',
   'Welder',
   'Tailor',
+  'Farmer',
   'Others',
 ];
 

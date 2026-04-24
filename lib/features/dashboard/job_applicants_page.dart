@@ -45,7 +45,7 @@ class _JobApplicantsPageState extends State<JobApplicantsPage>
   double get _headerHeight {
     final top = WidgetsBinding.instance.platformDispatcher.views.first.padding.top /
         WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
-    return top + 140;
+    return top + 120;
   }
 
   @override
@@ -242,28 +242,29 @@ class _ApplicantsHeader extends StatelessWidget {
       child: SlideTransition(
         position: slideAnim,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
                   GestureDetector(
                     onTap: () => context.pop(),
                     child: Container(
-                      width: 40, height: 40,
+                      width: 36, height: 36,
                       decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
                           shape: BoxShape.circle),
                       child: const Icon(Icons.arrow_back_rounded,
-                          color: Colors.white, size: 20),
+                          color: Colors.white, size: 18),
                     ),
                   ),
                   const Spacer(),
                   if (pending > 0)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
@@ -274,42 +275,36 @@ class _ApplicantsHeader extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                              width: 7, height: 7,
+                              width: 6, height: 6,
                               decoration: const BoxDecoration(
                                   color: Colors.white,
                                   shape: BoxShape.circle)),
-                          const SizedBox(width: 5),
+                          const SizedBox(width: 4),
                           Text('$pending pending',
                               style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w700)),
                         ],
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               const Text('Applicants',
                   style: TextStyle(
                       color: Colors.white,
-                      fontSize: 26,
+                      fontSize: 22,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5)),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
-                jobTitle,
+                '$jobTitle  •  $total ${total == 1 ? 'applicant' : 'applicants'}',
                 style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 13),
+                    fontSize: 12),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                '$total ${total == 1 ? 'person has' : 'people have'} applied',
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
               ),
             ],
           ),

@@ -114,6 +114,7 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
           boxShadow: [BoxShadow(color: _kOrange.withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 8))],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
               child: Column(
@@ -137,9 +138,10 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
                 ],
               ),
             ),
+            const SizedBox(width: 12),
             Opacity(
               opacity: 0.25,
-              child: Image.asset('assets/images/home.png', height: 80, fit: BoxFit.contain),
+              child: Image.asset('assets/images/home.png', height: 80, width: 80, fit: BoxFit.contain),
             ),
           ],
         ),
@@ -174,12 +176,12 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
               style: TextStyle(color: _kBrownMid, fontSize: 14, height: 1.7),
             ),
             const SizedBox(height: 16),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _featurePill(Icons.bolt_rounded, 'Fast Hiring'),
-                const SizedBox(width: 8),
                 _featurePill(Icons.verified_rounded, 'Trusted'),
-                const SizedBox(width: 8),
                 _featurePill(Icons.place_rounded, 'Local'),
               ],
             ),
@@ -310,8 +312,10 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(step.title,
-                        style: const TextStyle(color: _kBrown, fontSize: 14, fontWeight: FontWeight.w700)),
+                    Flexible(
+                      child: Text(step.title,
+                          style: const TextStyle(color: _kBrown, fontSize: 14, fontWeight: FontWeight.w700)),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 5),

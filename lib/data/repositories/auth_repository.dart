@@ -40,9 +40,34 @@ class AuthRepository extends ChangeNotifier {
 
   // Initialize auth state listener
   Future<void> _init() async {
+    // Use currentUser first (instant, no network) for warm starts
+    final current = _auth.currentUser;
+    if (current != null) {
+      _currentUser = AppUser(
+        id: current.uid,
+        name: current.displayName ?? current.email?.split('@').first,
+        email: current.email,
+      );
+      _isReady = true;
+      notifyListeners();
+      // Load full profile in background without blocking
+      _loadUserData(current);
+    }
+
     _auth.authStateChanges().listen((User? user) async {
       if (user != null) {
-        await _loadUserData(user);
+        if (!_isReady) {
+          // Cold start — set ready immediately with basic info
+          _currentUser = AppUser(
+            id: user.uid,
+            name: user.displayName ?? user.email?.split('@').first,
+            email: user.email,
+          );
+          _isReady = true;
+          notifyListeners();
+          // Load full profile in background
+          _loadUserData(user);
+        }
       } else {
         _currentUser = null;
         _isReady = true;

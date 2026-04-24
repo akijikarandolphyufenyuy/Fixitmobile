@@ -24,12 +24,15 @@ const kBrownLight  = Color(0xFFE8D8CE);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = false;
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Run app immediately — Firebase init happens in background
   runApp(FixitApp(authRepository: AuthRepository.instance));
+  // Init Firebase after first frame is rendered
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
 class FixitApp extends StatefulWidget {
@@ -47,13 +50,8 @@ class _FixitAppState extends State<FixitApp> {
   @override
   void initState() {
     super.initState();
-    _initFcm();
-  }
-
-  Future<void> _initFcm() async {
-    await FcmService.instance.init(
-      onForegroundMessage: _showInAppPopup,
-    );
+    // FCM init is non-blocking — don't await
+    FcmService.instance.init(onForegroundMessage: _showInAppPopup);
   }
 
   void _showInAppPopup(RemoteMessage message) {
@@ -126,7 +124,6 @@ class _FixitAppState extends State<FixitApp> {
     return base.copyWith(
       scaffoldBackgroundColor: kCream,
       textTheme: GoogleFonts.lexendTextTheme(base.textTheme).apply(bodyColor: kBrown, displayColor: kBrown),
-      appBarTheme: const AppBarTheme(backgroundColor: kCream, foregroundColor: kBrown, elevation: 0, centerTitle: true),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: kOrange,

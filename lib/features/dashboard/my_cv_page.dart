@@ -4,8 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-
 import '../widgets/app_nav_bar.dart';
 
 const _kOrange      = Color(0xFFF77705);
@@ -38,6 +36,7 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
   String _profession = '';
   String _language = 'English';
   String? _photoUrl;
+  List<String> _skills = [];
 
   double get _headerHeight {
     final topPadding = WidgetsBinding.instance.platformDispatcher.views.first.padding.top /
@@ -82,6 +81,12 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
           _profession = d['profession'] as String? ?? '';
           _language   = (d['language']  as String? ?? 'en') == 'fr' ? 'Français' : 'English';
           _photoUrl   = d['photoUrl']   as String?;
+          final rawSkills = d['skills'];
+          if (rawSkills is List) {
+            _skills = rawSkills.map((s) => s.toString()).toList();
+          } else if (rawSkills is String && rawSkills.isNotEmpty) {
+            _skills = rawSkills.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          }
           _loading    = false;
         });
       } else {
@@ -99,18 +104,28 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
 
   Future<void> _uploadPhoto() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked == null || !mounted) return;
+    XFile? picked;
+    try {
+      picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    } catch (_) {
+      return;
+    }
+    if (picked == null) return;
+
+    // Defer setState past the current frame to avoid mouse_tracker assertion
+    await Future.delayed(Duration.zero);
+    if (!mounted) return;
 
     setState(() => _uploadingPhoto = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      final bytes = await picked.readAsBytes();
       final ref = FirebaseStorage.instance
           .ref()
           .child('profile_photos/${user.uid}.jpg');
-      await ref.putFile(File(picked.path));
+      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
       final url = await ref.getDownloadURL();
 
       await FirebaseFirestore.instance
@@ -119,7 +134,8 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
           .update({'photoUrl': url});
 
       if (!mounted) return;
-      setState(() => _photoUrl = url);
+      // Append cache-buster so NetworkImage reloads the new photo
+      setState(() => _photoUrl = '$url&v=${DateTime.now().millisecondsSinceEpoch}');
       _showSnack('Profile photo updated', isError: false);
     } catch (e) {
       if (!mounted) return;
@@ -145,6 +161,7 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
         onCancel: () => Navigator.pop(ctx, false),
       ),
     );
+    await Future.delayed(Duration.zero);
     if (confirmed != true || !mounted) return;
 
     try {
@@ -203,6 +220,12 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
                         _buildSectionLabel('Personal Information'),
                         const SizedBox(height: 12),
                         _buildInfoCard(),
+                        if (_skills.isNotEmpty) ...[
+                          const SizedBox(height: 28),
+                          _buildSectionLabel('Skills'),
+                          const SizedBox(height: 12),
+                          _buildSkillsCard(),
+                        ],
                         const SizedBox(height: 28),
                         _buildSectionLabel('Account'),
                         const SizedBox(height: 12),
@@ -244,13 +267,22 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
                       end: Alignment.bottomRight,
                     ),
                     boxShadow: [BoxShadow(color: _kOrange.withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 6))],
-                    image: _photoUrl != null
-                        ? DecorationImage(image: NetworkImage(_photoUrl!), fit: BoxFit.cover)
-                        : null,
                   ),
-                  child: _photoUrl == null
-                      ? Center(child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)))
-                      : null,
+                  child: ClipOval(
+                    child: _photoUrl != null
+                        ? Image.network(
+                            _photoUrl!,
+                            key: ValueKey(_photoUrl),
+                            width: 90, height: 90,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+                            ),
+                          )
+                        : Center(
+                            child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+                          ),
+                  ),
                 ),
                 Positioned(
                   bottom: 0, right: 0,
@@ -320,6 +352,14 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
             _infoRow(Icons.location_on_rounded, 'Location', _location.isNotEmpty ? _location : '—'),
             _divider(),
             _infoRow(Icons.language_rounded, 'Language', _language),
+            if (_profession.isNotEmpty) ...[
+              _divider(),
+              _infoRow(Icons.work_outline_rounded, 'Profession', _profession),
+            ],
+            if (_skills.isNotEmpty) ...[
+              _divider(),
+              _skillsRow(),
+            ],
           ],
         ),
       ),
@@ -359,6 +399,49 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
     padding: const EdgeInsets.only(left: 68),
     child: Divider(height: 1, color: _kBrownLight.withValues(alpha: 0.6)),
   );
+
+  Widget _skillsRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: _kOrange.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.star_rounded, color: _kOrange, size: 18),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Skills',
+                    style: TextStyle(color: _kBrownMid, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _skills.map((s) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _kOrange.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _kOrange.withValues(alpha: 0.25)),
+                    ),
+                    child: Text(s, style: const TextStyle(color: _kOrange, fontSize: 12, fontWeight: FontWeight.w600)),
+                  )).toList(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   // ── Account Card ─────────────────────────────────────────────────────────────
   Widget _buildAccountCard() {
@@ -423,6 +506,40 @@ class _MyCvPageState extends State<MyCvPage> with SingleTickerProviderStateMixin
             ),
             const Icon(Icons.chevron_right_rounded, color: _kBrownMid, size: 20),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkillsCard() {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 575),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, child) => Opacity(opacity: v, child: Transform.translate(offset: Offset(0, 18 * (1 - v)), child: child)),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 16, offset: const Offset(0, 4))],
+        ),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _skills.map((skill) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: _kOrange.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _kOrange.withValues(alpha: 0.25)),
+            ),
+            child: Text(
+              skill,
+              style: const TextStyle(color: _kOrange, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          )).toList(),
         ),
       ),
     );
@@ -495,10 +612,9 @@ class _ProfileHeader extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('My Account', style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 12, fontWeight: FontWeight.w400)),
-                        const SizedBox(height: 2),
+                        Text('My Account', style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 11, fontWeight: FontWeight.w400, height: 1.1)),
                         const Text('Personal Information',
-                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.1)),
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.2)),
                       ],
                     ),
                   ),

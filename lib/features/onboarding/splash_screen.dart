@@ -116,18 +116,6 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
             const SizedBox(height: 56),
-            // ── Loading indicator ──────────────────────────────────────────
-            FadeTransition(
-              opacity: _taglineFade,
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: _kOrange.withValues(alpha: 0.7),
-                  strokeWidth: 2.0,
-                ),
-              ),
-            ),
           ],
         ),
       ),

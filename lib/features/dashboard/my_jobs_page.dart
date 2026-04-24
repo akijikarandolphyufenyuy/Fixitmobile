@@ -454,6 +454,34 @@ class _JobPostedCard extends StatelessWidget {
     return 'assets/images/home.png';
   }
 
+  static String _fmtDate(DateTime dt) {
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${m[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
+  Widget _buildImage() {
+    if (job.imageUrl != null && job.imageUrl!.isNotEmpty) {
+      return Image.network(
+        job.imageUrl!,
+        height: 140,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Image.asset(
+          _asset(job.category),
+          height: 140,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    return Image.asset(
+      _asset(job.category),
+      height: 140,
+      width: double.infinity,
+      fit: BoxFit.cover,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bg = isDark ? const Color(0xFF2C1F18) : Colors.white;
@@ -493,12 +521,7 @@ class _JobPostedCard extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: Image.asset(
-                      _asset(job.category),
-                      height: 130,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                    child: _buildImage(),
                   ),
                   Positioned.fill(
                     child: ClipRRect(
@@ -573,6 +596,28 @@ class _JobPostedCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Category
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _kOrange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(job.category,
+                          style: const TextStyle(color: _kOrange, fontSize: 11, fontWeight: FontWeight.w700)),
+                    ),
+                    const SizedBox(height: 10),
+                    // Description
+                    Text(
+                      job.description,
+                      style: TextStyle(
+                          color: isDark ? const Color(0xFFBB9070) : _kBrownMid,
+                          fontSize: 13, height: 1.5),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 10),
+                    // Location
                     Row(
                       children: [
                         const Icon(Icons.location_on_rounded, size: 14, color: _kBrownMid),
@@ -597,15 +642,38 @@ class _JobPostedCard extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Text(job.payRange!,
                                     style: const TextStyle(
-                                        color: Color(0xFF0A8F6E),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700)),
+                                        color: Color(0xFF0A8F6E), fontSize: 12, fontWeight: FontWeight.w700)),
                               ],
                             ),
                           ),
                         ],
                       ],
                     ),
+                    // Contact
+                    if (job.contact != null && job.contact!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone_rounded, size: 14, color: _kBrownMid),
+                          const SizedBox(width: 4),
+                          Text(job.contact!, style: const TextStyle(color: _kBrownMid, fontSize: 13)),
+                        ],
+                      ),
+                    ],
+                    // Expiry
+                    if (job.expiresAt != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today_rounded, size: 14, color: _kBrownMid),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Expires: ${_fmtDate(job.expiresAt!)}',
+                            style: const TextStyle(color: _kBrownMid, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 14),
 
                     StreamBuilder<List>(

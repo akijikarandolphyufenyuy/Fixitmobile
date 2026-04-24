@@ -11,20 +11,14 @@ rootProject.layout.buildDirectory.set(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.set(newSubprojectBuildDir)
-}
 
-subprojects {
     project.evaluationDependsOn(":app")
-}
 
-subprojects {
-    afterEvaluate {
-        if (extensions.findByName("android") != null) {
-            extensions.configure<com.android.build.gradle.BaseExtension> {
-                compileOptions {
-                    sourceCompatibility = JavaVersion.VERSION_17
-                    targetCompatibility = JavaVersion.VERSION_17
-                }
+    plugins.withId("com.android.library") {
+        extensions.configure<com.android.build.gradle.LibraryExtension> {
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
             }
         }
     }
