@@ -76,8 +76,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
       if (mounted) setState(() => _emailSent = true);
     } on FirebaseAuthException catch (e) {
       String msg = 'Could not send reset link';
-      if (e.code == 'user-not-found') msg = 'No account found with this email.';
-      else if (e.code == 'invalid-email') msg = 'Invalid email address.';
+      if (e.code == 'user-not-found') {
+        msg = 'No account found with this email.';
+      } else if (e.code == 'invalid-email') msg = 'Invalid email address.';
       else msg = e.message ?? msg;
       if (mounted) _showSnack(msg, isError: true);
     } catch (_) {
